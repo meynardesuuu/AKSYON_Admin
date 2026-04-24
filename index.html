@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AKSYON! Admin</title>
   <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="admin.css">
   <style>
     .admin-app-hidden { display: none !important; }
@@ -107,6 +108,21 @@
     .pw-bar.filled.fair { background: #f59e0b; }
     .pw-bar.filled.strong { background: #22c55e; }
     .pw-label { font-size: 10px; color: #b0b8c8; font-weight: 500; min-width: 36px; text-align: right; }
+    .boot-error {
+      position: fixed;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      z-index: 3000;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #fff7ed;
+      color: #9a3412;
+      border: 1px solid #fdba74;
+      font: 600 13px 'DM Sans', sans-serif;
+      box-shadow: 0 10px 30px rgba(0,0,0,.12);
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -419,10 +435,10 @@
         </div>
 
         <div class="panel-section">
-          <div class="panel-section-title">Conversation</div>
+          <div class="panel-section-title">Comments / Updates</div>
           <div id="panelComments" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;color:var(--gray-600);font-size:13px;">No updates yet.</div>
           <div style="display:flex;gap:10px;align-items:flex-start;">
-            <textarea id="adminCommentInput" placeholder="Reply to the resident or post a dispatch update..."
+            <textarea id="adminCommentInput" placeholder="Reply to the resident or post an update..."
               style="flex:1;min-height:88px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;resize:vertical;"></textarea>
             <button class="sort-btn active" onclick="sendAdminComment()" style="white-space:nowrap;">Send Update</button>
           </div>
@@ -430,11 +446,15 @@
 
         <div class="panel-actions">
           <div class="action-row">
+            <button class="btn-review" onclick="reviewIncident()">🔎 Mark as Reviewed</button>
             <button class="btn-resolve" onclick="resolveIncident()">✅ Mark as Resolved</button>
+          </div>
+          <div class="action-row">
             <button class="btn-flag" onclick="flagIncident()">🚩 Flag as False</button>
+            <button class="btn-delete" onclick="deleteReport()">🗑 Delete Report</button>
           </div>
           <button class="btn-dispatch" onclick="dispatchUnits()">🚁 Dispatch Response Units</button>
-          <div class="btn-dispatch-note">Confirming this action will immediately notify the nearest specialized units.</div>
+          <div class="btn-dispatch-note">Review the report first, then dispatch and leave updates through the comment thread.</div>
         </div>
       </div>
     </div>
@@ -454,7 +474,20 @@
     <div class="toast-container" id="toastContainer"></div>
   </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="admin.js"></script>
+  <div id="bootError" class="boot-error"></div>
+  <script>
+    setTimeout(function () {
+      if (typeof window.handleLogin !== 'function') {
+        var el = document.getElementById('bootError');
+        if (el) {
+          el.style.display = 'block';
+          el.textContent = 'admin.js did not load. Check that admin.js is deployed beside admin.html and that the browser network tab shows 200 for admin.js.';
+        }
+      }
+    }, 1200);
+  </script>
 </body>
 </html>
