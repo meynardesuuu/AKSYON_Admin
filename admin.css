@@ -39,7 +39,13 @@ body {
   color: var(--gray-800);
   min-height: 100vh;
   display: flex;
-  overflow: hidden;
+  overflow-x: hidden;
+}
+
+#adminAppShell {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
 }
 
 /* ── SCROLLBAR ── */
@@ -186,6 +192,8 @@ body {
 .main {
   margin-left: var(--sidebar-w);
   flex: 1;
+  width: calc(100vw - var(--sidebar-w));
+  max-width: calc(100vw - var(--sidebar-w));
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -196,11 +204,13 @@ body {
    HEADER
 ──────────────────────────────── */
 .header {
-  height: var(--header-h);
+  min-height: var(--header-h);
+  height: auto;
   background: var(--white);
   border-bottom: 1px solid var(--gray-200);
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   padding: 0 28px;
   gap: 16px;
   position: sticky;
@@ -322,6 +332,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 22px;
+  min-width: 0;
 }
 
 /* ────────────────────────────────
@@ -329,7 +340,7 @@ body {
 ──────────────────────────────── */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 14px;
 }
 .stat-card {
@@ -428,7 +439,7 @@ body {
 ──────────────────────────────── */
 .incidents-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 14px;
 }
 
@@ -588,7 +599,7 @@ body {
 .detail-panel {
   position: fixed;
   top: 0; right: 0; bottom: 0;
-  width: 400px;
+  width: min(460px, 100vw);
   background: var(--white);
   box-shadow: var(--shadow-lg);
   z-index: 201;
@@ -639,12 +650,30 @@ body {
 .panel-body { flex: 1; overflow-y: auto; }
 
 .panel-media {
-  height: 170px;
+  height: 240px;
   background: var(--gray-200);
   position: relative;
   overflow: hidden;
   display: flex; align-items: center; justify-content: center;
   font-size: 48px;
+}
+
+.admin-map-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.panel-photo-thumb {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 88px;
+  height: 88px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 3px solid rgba(255,255,255,.9);
+  box-shadow: var(--shadow-md);
+  z-index: 401;
 }
 
 .map-placeholder {
@@ -704,39 +733,47 @@ body {
   padding: 16px 20px;
   display: flex; flex-direction: column; gap: 10px;
 }
-.action-row { display: flex; gap: 10px; }
+.action-row { display: flex; gap: 10px; flex-wrap: wrap; }
 
-.btn-resolve {
-  flex: 1;
+.btn-review,
+.btn-resolve,
+.btn-flag,
+.btn-delete {
+  flex: 1 1 180px;
   padding: 11px;
   border-radius: 9px;
-  border: 1.5px solid var(--green);
   background: var(--white);
-  color: var(--green);
   font-size: 13px;
   font-weight: 600;
   font-family: 'DM Sans', sans-serif;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center; gap: 7px;
   transition: all .15s;
+}
+
+.btn-review {
+  border: 1.5px solid var(--blue);
+  color: var(--blue);
+}
+.btn-review:hover { background: var(--blue-light); }
+
+.btn-resolve {
+  border: 1.5px solid var(--green);
+  color: var(--green);
 }
 .btn-resolve:hover { background: var(--green-light); }
 
 .btn-flag {
-  flex: 1;
-  padding: 11px;
-  border-radius: 9px;
   border: 1.5px solid #7e22ce;
-  background: var(--white);
   color: #7e22ce;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: 'DM Sans', sans-serif;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 7px;
-  transition: all .15s;
 }
 .btn-flag:hover { background: #fdf4ff; }
+
+.btn-delete {
+  border: 1.5px solid var(--red);
+  color: var(--red);
+}
+.btn-delete:hover { background: var(--red-pale); }
 
 .btn-dispatch {
   width: 100%;
@@ -857,3 +894,43 @@ body {
 }
 .empty-state-icon { font-size: 40px; margin-bottom: 12px; }
 .empty-state-text { font-size: 14px; font-weight: 500; }
+
+@media (max-width: 1100px) {
+  .header {
+    align-items: flex-start;
+    padding: 16px 20px;
+  }
+
+  .search-bar {
+    width: min(320px, 100%);
+  }
+
+  .sort-controls {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 900px) {
+  body {
+    overflow-y: auto;
+  }
+
+  .sidebar {
+    position: static;
+    width: 100%;
+    min-height: auto;
+  }
+
+  #adminAppShell {
+    flex-direction: column;
+  }
+
+  .main {
+    margin-left: 0;
+    width: 100%;
+    max-width: 100%;
+    min-height: auto;
+  }
+}
