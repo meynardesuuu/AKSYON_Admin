@@ -454,6 +454,7 @@ async function initAdmin() {
 
   } catch (err) {
     console.warn('[AKSYON] Supabase not configured – using demo data.');
+    showAdminAuth('viewLogin');
     incidents = DEMO_INCIDENTS;
     updateStats();
     renderIncidents();
