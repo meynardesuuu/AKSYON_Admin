@@ -1,7 +1,9 @@
+window.__adminBooted = true;
+
 const SUPABASE_URL = "https://dugzytiyhyafdrhisjqg.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_nQN9DQBb7nwR1A6iYH52pQ_jCROHCGS";
 
-const supabase = window.supabase?.createClient
+const adminClient = window.supabase?.createClient
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         persistSession: true,
@@ -32,9 +34,13 @@ function showAdminApp() {
   if (appShell) appShell.classList.remove('admin-app-hidden');
 }
 
+function getAdminPageUrl() {
+  return window.location.origin + window.location.pathname;
+}
+
 async function getCurrentAdminSession() {
-  if (!supabase) return null;
-  const { data: { session } } = await supabase.auth.getSession();
+  if (!adminClient) return null;
+  const { data: { session } } = await adminClient.auth.getSession();
   return session || null;
 }
 
@@ -42,7 +48,7 @@ async function getCurrentAdminProfile() {
   const session = await getCurrentAdminSession();
   if (!session?.user) return null;
 
-  const { data, error } = await supabase
+  const { data, error } = await adminClient
     .from(ADMIN_TABLE)
     .select('*')
     .eq('user_id', session.user.id)
@@ -61,7 +67,7 @@ async function requireAdminSession() {
 
   const profile = await getCurrentAdminProfile();
   if (!profile?.is_active) {
-    await supabase.auth.signOut();
+    await adminClient.auth.signOut();
     showAdminAuth('viewLogin');
     return null;
   }
@@ -73,7 +79,7 @@ async function requireAdminSession() {
 
 /* ═══════════════════════════════════════════════════════
    AKSYON! — Auth Module (admin.html)
-   Handles: login, forgot password, password reset via Supabase
+   Handles: login, forgot password, password reset via adminClient
 ═══════════════════════════════════════════════════════ */
 
 // ── VIEW MANAGER ─────────────────────────────────────
@@ -175,8 +181,8 @@ async function handleLogin() {
   setLoading('loginBtn', true);
 
   try {
-    // ── Supabase Auth ──
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pw });
+    // ── adminClient Auth ──
+    const { data, error } = await adminClient.auth.signInWithPassword({ email, password: pw });
 
     if (error) {
       const msg = error.message.includes('Invalid') || error.message.includes('credentials')
@@ -187,21 +193,21 @@ async function handleLogin() {
     }
 
     // Check that this user is an admin
-    const { data: adminRecord, error: adminErr } = await supabase
+    const { data: adminRecord, error: adminErr } = await adminClient
       .from('admin_users')
       .select('id, role, is_active')
       .eq('user_id', data.user.id)
       .single();
 
     if (adminErr || !adminRecord?.is_active) {
-      await supabase.auth.signOut();
+      await adminClient.auth.signOut();
       showAlert('loginAlert', 'loginAlertMsg',
         'This account does not have administrator access. Contact the system administrator.');
       return;
     }
 
     // Success → go to dashboard
-    window.location.href = 'admin.html';
+    window.location.href = getAdminPageUrl();
 
   } catch (err) {
     showAlert('loginAlert', 'loginAlertMsg',
@@ -228,9 +234,9 @@ async function handleForgot() {
   setLoading('resetBtn', true);
 
   try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      // This URL should point to your login page; Supabase appends the token
-      redirectTo: window.location.origin + window.location.pathname.replace(/[^/]+$/, 'admin.html'),
+    const { error } = await adminClient.auth.resetPasswordForEmail(email, {
+      // This URL should point to your login page; adminClient appends the token
+      redirectTo: getAdminPageUrl(),
     });
 
     if (error) {
@@ -272,7 +278,7 @@ async function handleNewPassword() {
   setLoading('newPwBtn', true);
 
   try {
-    const { error } = await supabase.auth.updateUser({ password: newPw });
+    const { error } = await adminClient.auth.updateUser({ password: newPw });
 
     if (error) {
       showAlert('newPwAlert', 'newPwAlertMsg', error.message);
@@ -281,7 +287,7 @@ async function handleNewPassword() {
 
     // Success → go to dashboard
     showToastLogin('✅ Password updated! Redirecting…', 'success');
-    setTimeout(() => window.location.href = 'admin.html', 1500);
+    setTimeout(() => window.location.href = getAdminPageUrl(), 1500);
 
   } catch (err) {
     showAlert('newPwAlert', 'newPwAlertMsg', 'Something went wrong. Please try again.');
@@ -310,7 +316,7 @@ function showToastLogin(message, type = 'info') {
 
 // ── CHECK IF WE HAVE A RESET TOKEN IN URL ────────────
 window.addEventListener('DOMContentLoaded', async () => {
-  // Supabase puts the access_token / type=recovery in the URL hash
+  // adminClient puts the access_token / type=recovery in the URL hash
   const hash   = window.location.hash;
   const params = new URLSearchParams(hash.replace('#', '?'));
 
@@ -321,10 +327,10 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // If already logged in, bounce to dashboard
   try {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await adminClient.auth.getSession();
     if (session) {
       try {
-        const { data: adminRecord } = await supabase
+        const { data: adminRecord } = await adminClient
           .from('admin_users')
           .select('id, is_active')
           .eq('user_id', session.user.id)
@@ -335,7 +341,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       showAdminAuth('viewLogin');
     }
   } catch (_) {
-    // ignore — supabase might not be configured yet
+    // ignore — adminClient might not be configured yet
   }
 });
 
@@ -362,7 +368,7 @@ async function handleRegisterAdmin() {
   setLoading('registerBtn', true);
 
   try {
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await adminClient.auth.signUp({
       email,
       password,
       options: {
@@ -377,24 +383,24 @@ async function handleRegisterAdmin() {
 
     if (!data.session) {
       showAlert('registerAlert', 'registerAlertMsg',
-        'Registration created, but no session was returned. In Supabase Auth, disable email confirmation or confirm the email first, then log in.');
+        'Registration created, but no session was returned. In adminClient Auth, disable email confirmation or confirm the email first, then log in.');
       return;
     }
 
-    const { error: inviteError } = await supabase.rpc('consume_admin_invite', {
+    const { error: inviteError } = await adminClient.rpc('consume_admin_invite', {
       invite_code_input: inviteCode,
       admin_full_name: fullName,
     });
 
     if (inviteError) {
-      await supabase.auth.signOut();
+      await adminClient.auth.signOut();
       showAlert('registerAlert', 'registerAlertMsg',
         inviteError.message || 'Invalid or expired admin invitation code.');
       return;
     }
 
     showToastLogin('Admin account created. Redirecting to dashboard...', 'success');
-    setTimeout(() => window.location.href = 'admin.html', 1200);
+    setTimeout(() => window.location.href = getAdminPageUrl(), 1200);
   } catch (err) {
     showAlert('registerAlert', 'registerAlertMsg',
       err.message || 'Unable to register this admin account right now.');
@@ -417,7 +423,7 @@ document.addEventListener('keydown', (e) => {
 
 /* ═══════════════════════════════════════════════════════
    AKSYON! — Admin Dashboard · admin.js
-   Supabase-connected: realtime incidents, auth guard,
+   adminClient-connected: realtime incidents, auth guard,
    users, barangays, settings
 ═══════════════════════════════════════════════════════ */
 
@@ -427,7 +433,7 @@ let currentSort    = 'newest';
 let currentSearch  = '';
 let selectedId     = null;
 let modalCallback  = null;
-let incidents      = [];      // Live from Supabase (or demo data)
+let incidents      = [];      // Live from adminClient (or demo data)
 let currentAdmin   = null;
 let realtimeChannel = null;
 
@@ -453,19 +459,19 @@ async function initAdmin() {
     renderIncidents();
 
   } catch (err) {
-    console.warn('[AKSYON] Supabase not configured – using demo data.');
+    console.warn('[AKSYON] adminClient not configured – using demo data.');
     showAdminAuth('viewLogin');
     incidents = DEMO_INCIDENTS;
     updateStats();
     renderIncidents();
-    showToast('Running in demo mode. Configure Supabase in supabase_config.js 🔧', 'info');
+    showToast('Running in demo mode. Configure adminClient in supabase_config.js 🔧', 'info');
   }
 }
 
 // ── ADMIN PROFILE ──────────────────────────────────
 async function loadAdminProfile() {
   try {
-    const { data } = await supabase
+    const { data } = await adminClient
       .from('admin_users')
       .select('full_name, role, avatar_url')
       .eq('user_id', currentAdmin.id)
@@ -484,7 +490,7 @@ async function loadAdminProfile() {
 
 // ── LOAD INCIDENTS ─────────────────────────────────
 async function loadIncidents() {
-  const { data, error } = await supabase
+  const { data, error } = await adminClient
     .from('reports')
     .select('*')
     .order('created_at', { ascending: false });
@@ -529,7 +535,7 @@ function normalizeIncident(row) {
 
 // ── REALTIME SUBSCRIPTION ──────────────────────────
 function subscribeRealtime() {
-  realtimeChannel = supabase
+  realtimeChannel = adminClient
     .channel('reports-feed')
     .on('postgres_changes',
       { event: '*', schema: 'public', table: 'reports' },
@@ -560,7 +566,7 @@ async function updateIncidentStatus(id, status) {
     return;
   }
 
-  const { error } = await supabase
+  const { error } = await adminClient
     .from('reports')
     .update({
       status,
@@ -779,7 +785,7 @@ let _adminUsers = [];
 
 async function loadAdminUsers() {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await adminClient
       .from('admin_users')
       .select('id, full_name, email, role, is_active, created_at')
       .order('created_at', { ascending: false });
@@ -790,7 +796,7 @@ async function loadAdminUsers() {
   } catch (err) {
     const el = document.getElementById('usersTable');
     if (el) el.innerHTML = `<div style="padding:20px;color:var(--gray-500);text-align:center">
-      Unable to load users. Check Supabase configuration.
+      Unable to load users. Check adminClient configuration.
     </div>`;
   }
 }
@@ -858,7 +864,7 @@ function tdStyle() {
 
 async function toggleAdminStatus(adminId, currentActive) {
   try {
-    const { error } = await supabase
+    const { error } = await adminClient
       .from('admin_users')
       .update({ is_active: !currentActive })
       .eq('id', adminId);
@@ -871,7 +877,7 @@ async function toggleAdminStatus(adminId, currentActive) {
 }
 
 function showAddAdminModal() {
-  showToast('To add an admin: invite the user via Supabase Auth, then add a row to admin_users. 📧', 'info');
+  showToast('To add an admin: invite the user via adminClient Auth, then add a row to admin_users. 📧', 'info');
 }
 
 // ── BARANGAY SECTION ───────────────────────────────
@@ -893,7 +899,7 @@ function buildBarangaySection() {
 
 async function loadBarangays() {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await adminClient
       .from('barangays')
       .select('id, name, zone, population, contact_person, contact_number')
       .order('name');
@@ -1026,7 +1032,7 @@ function buildSettingsSection() {
       </div>
       <div style="font-size:12.5px;color:var(--gray-500);line-height:1.7">
         <div>Dashboard Version: <strong>1.0.0</strong></div>
-        <div>Supabase Connected: <strong id="supabaseStatus">Checking…</strong></div>
+        <div>adminClient Connected: <strong id="supabaseStatus">Checking…</strong></div>
         <div>Realtime: <strong>${realtimeChannel ? '🟢 Active' : '🔴 Inactive'}</strong></div>
       </div>
     </div>
@@ -1067,7 +1073,7 @@ async function saveNewPassword() {
   if (pw !== cpw) { showToast('Passwords do not match.', 'error'); return; }
 
   try {
-    const { error } = await supabase.auth.updateUser({ password: pw });
+    const { error } = await adminClient.auth.updateUser({ password: pw });
     if (error) throw error;
     showToast('✅ Password updated!', 'success');
     document.getElementById('changePwSection').style.display = 'none';
@@ -1078,7 +1084,7 @@ async function saveNewPassword() {
 
 async function handleSignOut() {
   showModal('🚪', 'Sign Out?', 'You will be returned to the login page.', 'Sign Out', '#ef4444', async () => {
-    await supabase.auth.signOut();
+    await adminClient.auth.signOut();
     showAdminAuth('viewLogin');
   });
 }
@@ -1181,7 +1187,7 @@ async function sendAdminComment() {
   });
 
   try {
-    const { error } = await supabase
+    const { error } = await adminClient
       .from('reports')
       .update({
         comments,
@@ -1215,7 +1221,7 @@ async function addAdminSystemComment(reportId, text) {
     created_at: new Date().toISOString(),
   });
 
-  const { error } = await supabase
+  const { error } = await adminClient
     .from('reports')
     .update({
       comments,
@@ -1290,9 +1296,9 @@ function dispatchUnits() {
         await updateIncidentStatus(inc.id, newStatus);
         await addAdminSystemComment(inc.id, 'Response units were dispatched and your report is now under review.');
 
-        // Also log dispatch in Supabase
+        // Also log dispatch in adminClient
         if (currentAdmin) {
-          await supabase.from('dispatches').insert({
+          await adminClient.from('dispatches').insert({
             report_id    : inc.id,
             dispatched_by: currentAdmin.id,
             dispatched_at: new Date().toISOString(),
@@ -1447,4 +1453,5 @@ const DEMO_BARANGAYS = [
   { id:6, name:'Tungkong Mangga',zone:'4', population:7400, contact_person:'Kagawad Bautista',contact_number:'0917-111-0006' },
   { id:7, name:'Poblacion',      zone:'1', population:9100, contact_person:'Kagawad Mendoza', contact_number:'0917-111-0007' },
 ];
+
 
