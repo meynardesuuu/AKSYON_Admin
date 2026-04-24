@@ -436,6 +436,7 @@ let modalCallback  = null;
 let incidents      = [];      // Live from adminClient (or demo data)
 let currentAdmin   = null;
 let realtimeChannel = null;
+let adminMapInstance = null;
 
 // ── INIT ───────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
@@ -464,7 +465,7 @@ async function initAdmin() {
     incidents = DEMO_INCIDENTS;
     updateStats();
     renderIncidents();
-    showToast('Running in demo mode. Configure adminClient in supabase_config.js 🔧', 'info');
+    showToast('Running in demo mode. Configure the admin Supabase keys in admin.js 🔧', 'info');
   }
 }
 
@@ -505,8 +506,10 @@ function normalizeIncident(row) {
   const locationText = typeof row.location === 'object'
     ? (row.location?.address || '—')
     : (row.location || '—');
-  const latitude = typeof row.location === 'object' ? row.location?.lat : row.lat;
-  const longitude = typeof row.location === 'object' ? row.location?.lng : row.lng;
+  const latitudeRaw = typeof row.location === 'object' ? row.location?.lat : row.lat;
+  const longitudeRaw = typeof row.location === 'object' ? row.location?.lng : row.lng;
+  const latitude = Number(latitudeRaw);
+  const longitude = Number(longitudeRaw);
   const attachments = Array.isArray(row.attachments) ? row.attachments : [];
   const primaryMedia = attachments.find(file => file?.url) || null;
 
@@ -521,8 +524,10 @@ function normalizeIncident(row) {
     barangay  : row.barangay || row.user_barangay || '—',
     reporter  : row.user_name || row.reporter_name || 'Anonymous',
     contact   : row.user_email || row.reporter_contact || '—',
-    coords    : latitude && longitude
-      ? `${Number(latitude).toFixed(4)}°N, ${Number(longitude).toFixed(4)}°E`
+    lat       : Number.isFinite(latitude) ? latitude : null,
+    lng       : Number.isFinite(longitude) ? longitude : null,
+    coords    : Number.isFinite(latitude) && Number.isFinite(longitude)
+      ? `${latitude.toFixed(4)}°N, ${longitude.toFixed(4)}°E`
       : '—',
     time      : timeAgo(row.created_at),
     icon      : typeIcon(row.category || row.type),
@@ -702,7 +707,7 @@ function priorityBadge(p) {
 function statusBadge(s) {
   if (s === 'pending')     return '<span class="badge pending">Pending</span>';
   if (s === 'resolved')    return '<span class="badge resolved">Resolved</span>';
-  if (s === 'inreview') return '<span class="badge in-progress">In Review</span>';
+  if (s === 'inreview') return '<span class="badge in-progress">Reviewed</span>';
   if (s === 'false')       return '<span class="badge false">False Report</span>';
   return '';
 }
@@ -1102,14 +1107,6 @@ function openPanel(id) {
   document.getElementById('panelTitle').textContent  = inc.title;
   document.getElementById('panelBadges').innerHTML   = priorityBadge(inc.priority) + ' ' + statusBadge(inc.status);
 
-  const panelMedia = document.getElementById('panelMedia');
-  panelMedia.className = 'panel-media media-img ' + inc.mediaClass;
-  panelMedia.innerHTML = inc.photoUrl
-    ? `<img src="${inc.photoUrl}" style="width:100%;height:100%;object-fit:cover">
-       <div class="map-placeholder">🗺️ View on Map</div>`
-    : `<span style="font-size:52px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))">${inc.icon}</span>
-       <div class="map-placeholder" onclick="openMap('${inc.coords}')">🗺️ View on Map</div>`;
-
   document.getElementById('panelCoords').textContent   = inc.coords;
   document.getElementById('panelTime').textContent     = inc.time;
   document.getElementById('panelDesc').textContent     = inc.desc;
@@ -1117,6 +1114,7 @@ function openPanel(id) {
   document.getElementById('panelContact').textContent  = inc.contact;
   document.getElementById('panelAddress').textContent  = inc.location;
   document.getElementById('panelBarangay').textContent = inc.barangay;
+  renderPanelMedia(inc);
   renderPanelComments(inc);
   const commentInput = document.getElementById('adminCommentInput');
   if (commentInput) commentInput.value = '';
@@ -1127,15 +1125,64 @@ function openPanel(id) {
 
 function closePanel() {
   selectedId = null;
+  destroyAdminMap();
   document.getElementById('detailOverlay').classList.remove('open');
   document.getElementById('detailPanel').classList.remove('open');
   if (document.getElementById('incidentsGrid')) renderIncidents();
 }
 
-function openMap(coords) {
-  if (!coords || coords === '—') return;
-  const [lat, lng] = coords.replace(/[°NE]/g, '').split(', ');
-  window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
+function destroyAdminMap() {
+  if (adminMapInstance) {
+    try { adminMapInstance.remove(); } catch (_) {}
+    adminMapInstance = null;
+  }
+}
+
+function renderPanelMedia(inc) {
+  const panelMedia = document.getElementById('panelMedia');
+  if (!panelMedia) return;
+
+  destroyAdminMap();
+  panelMedia.className = 'panel-media';
+
+  if (Number.isFinite(inc.lat) && Number.isFinite(inc.lng) && window.L) {
+    panelMedia.innerHTML = `
+      <div id="adminMapCanvas" class="admin-map-canvas"></div>
+      ${inc.photoUrl ? `<img src="${inc.photoUrl}" alt="Report evidence" class="panel-photo-thumb">` : ''}
+      <div class="map-placeholder" onclick="openSelectedMap()">🗺️ Open full map</div>
+    `;
+
+    requestAnimationFrame(() => {
+      adminMapInstance = L.map('adminMapCanvas', {
+        zoomControl: true,
+        attributionControl: false,
+        scrollWheelZoom: false,
+      }).setView([inc.lat, inc.lng], 16);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(adminMapInstance);
+      L.marker([inc.lat, inc.lng]).addTo(adminMapInstance);
+      L.circle([inc.lat, inc.lng], {
+        radius: 45,
+        color: '#7B1113',
+        fillColor: '#7B1113',
+        fillOpacity: 0.12,
+        weight: 2,
+      }).addTo(adminMapInstance);
+      setTimeout(() => adminMapInstance?.invalidateSize(), 80);
+    });
+    return;
+  }
+
+  panelMedia.innerHTML = inc.photoUrl
+    ? `<img src="${inc.photoUrl}" style="width:100%;height:100%;object-fit:cover" alt="Report evidence">`
+    : `<span style="font-size:52px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))">${inc.icon}</span>`;
+}
+
+function openSelectedMap() {
+  if (!selectedId) return;
+  const inc = incidents.find(i => i.id === selectedId);
+  if (!inc || !Number.isFinite(inc.lat) || !Number.isFinite(inc.lng)) return;
+  window.open(`https://maps.google.com/?q=${inc.lat},${inc.lng}`, '_blank');
 }
 
 function renderPanelComments(inc) {
@@ -1206,6 +1253,38 @@ async function sendAdminComment() {
   } catch (err) {
     showToast('Failed to send update: ' + err.message, 'error');
   }
+}
+
+function reviewIncident() {
+  if (!selectedId) return;
+  const inc = incidents.find(i => i.id === selectedId);
+  if (!inc) return;
+  if (inc.status === 'inreview') {
+    showToast('This report is already reviewed.', 'info');
+    return;
+  }
+  if (inc.status === 'resolved') {
+    showToast('This report is already resolved.', 'info');
+    return;
+  }
+
+  showModal('🔎', 'Mark as Reviewed?',
+    `Set "${inc.title}" to reviewed so it is ready for dispatch and follow-up updates.`,
+    'Mark Reviewed', '#1a5276',
+    async () => {
+      try {
+        await updateIncidentStatus(inc.id, 'inreview');
+        await addAdminSystemComment(inc.id, 'Dispatcher reviewed the report and started validation.');
+        inc.status = 'inreview';
+        updateStats();
+        renderIncidents();
+        openPanel(inc.id);
+        showToast('🔎 Report marked as reviewed.', 'success');
+      } catch (err) {
+        showToast('Failed to mark reviewed: ' + err.message, 'error');
+      }
+    }
+  );
 }
 
 async function addAdminSystemComment(reportId, text) {
@@ -1283,18 +1362,48 @@ function flagIncident() {
   );
 }
 
+function deleteReport() {
+  if (!selectedId) return;
+  const inc = incidents.find(i => i.id === selectedId);
+  if (!inc) return;
+
+  showModal('🗑️', 'Delete Report?',
+    `Delete "${inc.title}" permanently? Use this only for confirmed spam, duplicates, or abusive reports.`,
+    'Delete', '#7B1113',
+    async () => {
+      try {
+        const { error } = await adminClient.from('reports').delete().eq('id', inc.id);
+        if (error) throw error;
+
+        incidents = incidents.filter(item => item.id !== inc.id);
+        updateStats();
+        renderIncidents();
+        closePanel();
+        showToast('🗑 Report deleted.', 'success');
+      } catch (err) {
+        showToast('Delete failed: ' + err.message, 'error');
+      }
+    }
+  );
+}
+
 function dispatchUnits() {
   if (!selectedId) return;
   const inc = incidents.find(i => i.id === selectedId);
+  if (!inc) return;
+
+  if (inc.status !== 'inreview') {
+    showToast('Mark the report as reviewed before dispatching units.', 'info');
+    return;
+  }
 
   showModal('🚁', 'Dispatch Response Units?',
     `Send the nearest response units to "${inc.title}". All relevant agencies will be notified.`,
     'Yes, Dispatch', '#7B1113',
     async () => {
       try {
-        const newStatus = inc.status === 'pending' ? 'inreview' : inc.status;
-        await updateIncidentStatus(inc.id, newStatus);
-        await addAdminSystemComment(inc.id, 'Response units were dispatched and your report is now under review.');
+        await updateIncidentStatus(inc.id, inc.status);
+        await addAdminSystemComment(inc.id, 'Response units were dispatched. Follow-up updates will appear in this comment thread.');
 
         // Also log dispatch in adminClient
         if (currentAdmin) {
@@ -1305,11 +1414,10 @@ function dispatchUnits() {
           }).catch(() => {}); // non-critical
         }
 
-        inc.status = newStatus;
         updateStats();
         renderIncidents();
         openPanel(selectedId);
-        showToast('🚁 Units dispatched to ' + inc.barangay + '!', 'success');
+        showToast('🚁 Units dispatched to ' + (inc.barangay || 'the area') + '!', 'success');
       } catch (err) {
         showToast('Dispatch failed: ' + err.message, 'error');
       }
