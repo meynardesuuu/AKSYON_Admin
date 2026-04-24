@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AKSYON! Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="admin.css">
+  <style>
+    .admin-app-hidden { display: none !important; }
+    .admin-auth-shell {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #5a0d0e;
+      z-index: 1200;
+      overflow: hidden;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .admin-auth-shell::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 40%, rgba(155,22,24,.55) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 80% at 80% 70%, rgba(90,13,14,.7) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 50% at 50% 20%, rgba(123,17,19,.4) 0%, transparent 50%);
+      animation: meshShift 12s ease-in-out infinite alternate;
+    }
+    .admin-auth-shell::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      opacity: .7;
+    }
+    @keyframes meshShift {
+      0% { transform: scale(1) translate(0, 0); }
+      100% { transform: scale(1.05) translate(-10px, 10px); }
+    }
+    .login-card {
+      position: relative;
+      z-index: 2;
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.18), 0 2px 8px rgba(0,0,0,.10);
+      width: min(360px, calc(100vw - 32px));
+      padding: 36px 32px 30px;
+    }
+    .logo-block { display: flex; flex-direction: column; align-items: center; margin-bottom: 28px; gap: 6px; }
+    .logo-mark-lg {
+      width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
+      background: #5a0d0e; color: #fff; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 20px; letter-spacing: -1px;
+      box-shadow: 0 4px 16px rgba(90,13,14,.35);
+    }
+    .logo-name { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 26px; color: #5a0d0e; letter-spacing: 2px; line-height: 1; }
+    .logo-tagline { font-size: 10.5px; font-weight: 500; color: #b0b8c8; letter-spacing: 1.5px; text-transform: uppercase; }
+    .divider { height: 1px; background: #eef0f4; margin: 0 -32px 24px; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 11.5px; font-weight: 600; color: #4a5568; letter-spacing: .4px; text-transform: uppercase; margin-bottom: 7px; }
+    .input-wrap { position: relative; display: flex; align-items: center; }
+    .input-icon { position: absolute; left: 12px; color: #b0b8c8; font-size: 14px; pointer-events: none; }
+    .form-input {
+      width: 100%; padding: 10px 12px 10px 36px; border: 1.5px solid #eef0f4; border-radius: 9px;
+      font-family: 'DM Sans', sans-serif; font-size: 13.5px; color: #1e2535; background: #f7f8fa; outline: none;
+    }
+    .form-input:focus { border-color: #7B1113; background: #fff; }
+    .toggle-pw { position: absolute; right: 12px; background: none; border: none; cursor: pointer; color: #b0b8c8; font-size: 14px; padding: 2px; }
+    .forgot-link, .back-btn { display: block; text-decoration: none; color: #7B1113; font-size: 11.5px; font-weight: 600; margin-top: 8px; cursor: pointer; }
+    .back-btn { background: none; border: none; text-align: left; padding: 0; margin-bottom: 18px; color: #7a869a; }
+    .btn-login {
+      width: 100%; margin-top: 20px; padding: 13px; border: none; border-radius: 10px; background: #5a0d0e; color: #fff;
+      font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer;
+      position: relative; overflow: hidden; box-shadow: 0 4px 14px rgba(90,13,14,.35);
+    }
+    .btn-login.loading { pointer-events: none; opacity: .8; }
+    .btn-login .spinner {
+      display: none; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%;
+      animation: spin .7s linear infinite; margin: 0 auto;
+    }
+    .btn-login.loading .btn-text { display: none; }
+    .btn-login.loading .spinner { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .login-footer { margin-top: 22px; text-align: center; font-size: 11px; color: #b0b8c8; line-height: 1.6; }
+    .alert { padding: 10px 14px; border-radius: 9px; font-size: 12.5px; font-weight: 500; margin-bottom: 16px; display: none; align-items: center; gap: 8px; }
+    .alert.show { display: flex; }
+    .alert.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .field-error { font-size: 11px; color: #ef4444; margin-top: 5px; display: none; }
+    .field-error.show { display: block; }
+    .form-input.input-error { border-color: #ef4444; }
+    .view-title { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; color: #1e2535; margin-bottom: 6px; }
+    .view-subtitle { font-size: 12.5px; color: #7a869a; line-height: 1.55; margin-bottom: 20px; }
+    .success-state { text-align: center; padding: 12px 0 4px; }
+    .success-icon { font-size: 44px; margin-bottom: 14px; }
+    .success-title { font-family: 'Syne', sans-serif; font-size: 17px; font-weight: 700; color: #1e2535; margin-bottom: 8px; }
+    .success-desc { font-size: 13px; color: #7a869a; line-height: 1.6; margin-bottom: 20px; }
+    .pw-strength { margin-top: 8px; display: flex; gap: 4px; align-items: center; }
+    .pw-bar { flex: 1; height: 3px; border-radius: 2px; background: #eef0f4; transition: background .25s; }
+    .pw-bar.filled.weak { background: #ef4444; }
+    .pw-bar.filled.fair { background: #f59e0b; }
+    .pw-bar.filled.strong { background: #22c55e; }
+    .pw-label { font-size: 10px; color: #b0b8c8; font-weight: 500; min-width: 36px; text-align: right; }
+  </style>
+</head>
+<body>
+  <div class="admin-auth-shell admin-app-hidden" id="adminAuthShell">
+    <div class="login-card" id="loginCard">
+      <div class="view active" id="viewLogin">
+        <div class="logo-block">
+          <div class="logo-mark-lg">AK!</div>
+          <div class="logo-name">AKSYON!</div>
+          <div class="logo-tagline">Admin Login</div>
+        </div>
+        <div class="divider"></div>
+        <div class="alert error" id="loginAlert"><span>⚠️</span><span id="loginAlertMsg">Invalid email or password.</span></div>
+        <div class="form-group">
+          <label class="form-label" for="emailInput">Administrator Email</label>
+          <div class="input-wrap">
+            <span class="input-icon">✉️</span>
+            <input class="form-input" type="email" id="emailInput" placeholder="admin@aksyon.gov.ph" autocomplete="email">
+          </div>
+          <div class="field-error" id="emailError">Please enter a valid email address.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="passwordInput">Password</label>
+          <div class="input-wrap">
+            <span class="input-icon">🔑</span>
+            <input class="form-input" type="password" id="passwordInput" placeholder="••••••••••" autocomplete="current-password">
+            <button class="toggle-pw" onclick="togglePw('passwordInput', this)" type="button">👁</button>
+          </div>
+          <div class="field-error" id="passwordError">Password is required.</div>
+          <a href="#" class="forgot-link" onclick="showView('viewForgot'); return false;">FORGOT PASSWORD?</a>
+        </div>
+        <button class="btn-login" id="loginBtn" onclick="handleLogin()"><span class="btn-text">LOGIN</span><div class="spinner"></div></button>
+        <button class="btn-login" type="button" onclick="showView('viewRegister')" style="margin-top:10px;background:#fff;color:#5a0d0e;border:1.5px solid #eef0f4;box-shadow:none;">
+          <span class="btn-text">REGISTER AS ADMIN</span>
+        </button>
+        <div class="login-footer">Authorized personnel only<br>Contact system administrator for access</div>
+      </div>
+
+      <div class="view" id="viewForgot">
+        <button class="back-btn" onclick="showView('viewLogin')">← Back to Login</button>
+        <div class="view-title">Forgotten Password</div>
+        <div class="view-subtitle">Enter your registered admin email. We'll send you a link to reset your password.</div>
+        <div class="alert error" id="forgotAlert"><span>⚠️</span><span id="forgotAlertMsg">No admin account found with that email.</span></div>
+        <div class="form-group">
+          <label class="form-label" for="forgotEmail">Registered Email</label>
+          <div class="input-wrap">
+            <span class="input-icon">✉️</span>
+            <input class="form-input" type="email" id="forgotEmail" placeholder="admin@aksyon.gov.ph">
+          </div>
+          <div class="field-error" id="forgotEmailError">Please enter a valid email address.</div>
+        </div>
+        <button class="btn-login" id="resetBtn" onclick="handleForgot()"><span class="btn-text">RESET</span><div class="spinner"></div></button>
+      </div>
+
+      <div class="view" id="viewResetSent">
+        <div class="success-state">
+          <div class="success-icon">📨</div>
+          <div class="success-title">Check Your Email</div>
+          <div class="success-desc">A password reset link has been sent to <strong id="sentToEmail"></strong>.<br>The link will expire in 60 minutes.</div>
+          <button class="btn-login" onclick="showView('viewLogin')"><span class="btn-text">BACK TO LOGIN</span></button>
+        </div>
+      </div>
+
+      <div class="view" id="viewNewPassword">
+        <div class="view-title">Create New Password</div>
+        <div class="view-subtitle">Choose a strong password for your admin account.</div>
+        <div class="alert error" id="newPwAlert"><span>⚠️</span><span id="newPwAlertMsg">Passwords do not match.</span></div>
+        <div class="form-group">
+          <label class="form-label" for="newPwInput">New Password</label>
+          <div class="input-wrap">
+            <span class="input-icon">🔑</span>
+            <input class="form-input" type="password" id="newPwInput" placeholder="••••••••••" oninput="checkStrength(this.value)">
+            <button class="toggle-pw" onclick="togglePw('newPwInput', this)" type="button">👁</button>
+          </div>
+          <div class="pw-strength"><div class="pw-bar" id="bar1"></div><div class="pw-bar" id="bar2"></div><div class="pw-bar" id="bar3"></div><div class="pw-label" id="pwLabel"></div></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="confirmPwInput">Confirm Password</label>
+          <div class="input-wrap">
+            <span class="input-icon">🔑</span>
+            <input class="form-input" type="password" id="confirmPwInput" placeholder="••••••••••">
+            <button class="toggle-pw" onclick="togglePw('confirmPwInput', this)" type="button">👁</button>
+          </div>
+          <div class="field-error" id="confirmPwError">Passwords do not match.</div>
+        </div>
+        <button class="btn-login" id="newPwBtn" onclick="handleNewPassword()"><span class="btn-text">RESET PASSWORD</span><div class="spinner"></div></button>
+      </div>
+
+      <div class="view" id="viewRegister">
+        <button class="back-btn" onclick="showView('viewLogin')">← Back to Login</button>
+        <div class="view-title">Dispatcher Registration</div>
+        <div class="view-subtitle">Use the invitation code provided by the barangay system administrator to create your dispatcher account.</div>
+        <div class="alert error" id="registerAlert"><span>⚠️</span><span id="registerAlertMsg">Registration failed.</span></div>
+        <div class="form-group">
+          <label class="form-label" for="registerName">Full Name</label>
+          <div class="input-wrap"><span class="input-icon">👤</span><input class="form-input" type="text" id="registerName" placeholder="Dispatcher full name"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="registerEmail">Official Email</label>
+          <div class="input-wrap"><span class="input-icon">✉️</span><input class="form-input" type="email" id="registerEmail" placeholder="dispatcher@aksyon.gov.ph"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="registerInviteCode">Invitation Code</label>
+          <div class="input-wrap"><span class="input-icon">🔐</span><input class="form-input" type="text" id="registerInviteCode" placeholder="Enter invite code"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="registerPassword">Password</label>
+          <div class="input-wrap">
+            <span class="input-icon">🔑</span>
+            <input class="form-input" type="password" id="registerPassword" placeholder="••••••••" oninput="checkStrength(this.value)">
+            <button class="toggle-pw" onclick="togglePw('registerPassword', this)" type="button">👁</button>
+          </div>
+        </div>
+        <button class="btn-login" id="registerBtn" onclick="handleRegisterAdmin()"><span class="btn-text">CREATE ADMIN ACCOUNT</span><div class="spinner"></div></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="adminAppShell" class="admin-app-hidden">
+    <aside class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-mark">AK!</div>
+        <div>
+          <div class="logo-text">AKSYON!</div>
+          <div class="logo-sub">Admin Dashboard</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">Main</div>
+        <div class="nav-item active" onclick="setNav(this, 'complaints')">
+          <span class="nav-icon">📋</span>
+          Complaints
+          <span class="nav-badge" id="pendingBadge">0</span>
+        </div>
+        <div class="nav-item" onclick="setNav(this, 'resolved')">
+          <span class="nav-icon">✅</span>
+          Resolved
+        </div>
+        <div class="nav-item" onclick="setNav(this, 'false')">
+          <span class="nav-icon">🚩</span>
+          False Reports
+        </div>
+        <div class="nav-section-label">System</div>
+        <div class="nav-item" onclick="setNav(this, 'users')">
+          <span class="nav-icon">👥</span>
+          Users
+        </div>
+        <div class="nav-item" onclick="setNav(this, 'barangay')">
+          <span class="nav-icon">🏘️</span>
+          Barangay Zones
+        </div>
+        <div class="nav-item" onclick="setNav(this, 'settings')">
+          <span class="nav-icon">⚙️</span>
+          Settings
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="dispatcher-info">
+          <div class="dispatcher-avatar">👤</div>
+          <div class="dispatcher-details">
+            <div class="dispatcher-name">Admin Dispatcher</div>
+            <div class="dispatcher-status">
+              <span class="status-dot"></span> On Duty
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="header">
+        <div class="header-title-block">
+          <div class="header-title">Active Incident Feed</div>
+          <div class="header-subtitle">
+            <span class="live-pulse"></span>
+            <span id="liveCount">0</span> live reports &middot; System status: Nominal
+          </div>
+        </div>
+
+        <div class="search-bar">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" placeholder="Search reports..." oninput="filterIncidents()">
+        </div>
+
+        <div class="sort-controls">
+          <span>Sort by:</span>
+          <button class="sort-btn active" onclick="sortBy('newest', this)">Newest First</button>
+          <button class="sort-btn" onclick="sortBy('priority', this)">Priority Level</button>
+        </div>
+
+        <button class="notif-btn" onclick="showToast('No new notifications.', 'info')">
+          🔔<span class="notif-dot"></span>
+        </button>
+      </header>
+
+      <div class="content">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon red">🚨</div>
+            <div class="stat-details">
+              <div class="stat-label">High Priority</div>
+              <div class="stat-value red" id="statHigh">0</div>
+              <div class="stat-trend">Awaiting action</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon orange">⚠️</div>
+            <div class="stat-details">
+              <div class="stat-label">False Reports</div>
+              <div class="stat-value orange" id="statFalse">0</div>
+              <div class="stat-trend">Flagged today</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon blue">⏳</div>
+            <div class="stat-details">
+              <div class="stat-label">In Review</div>
+              <div class="stat-value blue" id="statProgress">0</div>
+              <div class="stat-trend">Being addressed</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon green">✅</div>
+            <div class="stat-details">
+              <div class="stat-label">Resolved Today</div>
+              <div class="stat-value green" id="statResolved">0</div>
+              <div class="stat-trend">Successfully closed</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="feed-header">
+            <div class="feed-title">Community Incident Reports</div>
+            <div class="live-badge">
+              <span class="live-pulse" style="width:6px;height:6px;background:#16a34a"></span>
+              <span id="liveBadgeCount">0 Live</span>
+            </div>
+            <div class="filter-chips">
+              <div class="chip active" onclick="filterByType('all', this)">All</div>
+              <div class="chip" onclick="filterByType('pending', this)">Pending</div>
+              <div class="chip" onclick="filterByType('inreview', this)">In Review</div>
+              <div class="chip" onclick="filterByType('resolved', this)">Resolved</div>
+            </div>
+          </div>
+          <div class="incidents-grid" id="incidentsGrid"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-overlay" id="detailOverlay" onclick="closePanel()"></div>
+
+    <div class="detail-panel" id="detailPanel">
+      <div class="panel-header">
+        <div class="panel-header-icon" id="panelIcon">📋</div>
+        <div style="flex:1;min-width:0">
+          <div class="panel-inc-id" id="panelId">INC-0000</div>
+          <div class="panel-inc-title" id="panelTitle">—</div>
+          <div style="margin-top:6px;display:flex;gap:6px" id="panelBadges"></div>
+        </div>
+        <button class="panel-close" onclick="closePanel()">✕</button>
+      </div>
+
+      <div class="panel-body">
+        <div class="panel-media" id="panelMedia">
+          <div class="map-placeholder">🗺️ View on Map</div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-section-title">Location Details</div>
+          <div class="info-grid">
+            <div class="info-cell">
+              <div class="info-cell-label">🌐 Coordinates</div>
+              <div class="info-cell-value" id="panelCoords">—</div>
+            </div>
+            <div class="info-cell">
+              <div class="info-cell-label">⏱️ Time of Report</div>
+              <div class="info-cell-value" id="panelTime">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-section-title">Incident Description</div>
+          <div class="panel-desc-text" id="panelDesc">—</div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-section-title">Reporter Information</div>
+          <div class="info-grid">
+            <div class="info-cell">
+              <div class="info-cell-label">👤 Name</div>
+              <div class="info-cell-value" id="panelReporter">—</div>
+            </div>
+            <div class="info-cell">
+              <div class="info-cell-label">📞 Contact</div>
+              <div class="info-cell-value" id="panelContact">—</div>
+            </div>
+            <div class="info-cell">
+              <div class="info-cell-label">📍 Address</div>
+              <div class="info-cell-value" id="panelAddress">—</div>
+            </div>
+            <div class="info-cell">
+              <div class="info-cell-label">🏘️ Barangay</div>
+              <div class="info-cell-value" id="panelBarangay">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section">
+          <div class="panel-section-title">Conversation</div>
+          <div id="panelComments" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;color:var(--gray-600);font-size:13px;">No updates yet.</div>
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <textarea id="adminCommentInput" placeholder="Reply to the resident or post a dispatch update..."
+              style="flex:1;min-height:88px;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:13px;resize:vertical;"></textarea>
+            <button class="sort-btn active" onclick="sendAdminComment()" style="white-space:nowrap;">Send Update</button>
+          </div>
+        </div>
+
+        <div class="panel-actions">
+          <div class="action-row">
+            <button class="btn-resolve" onclick="resolveIncident()">✅ Mark as Resolved</button>
+            <button class="btn-flag" onclick="flagIncident()">🚩 Flag as False</button>
+          </div>
+          <button class="btn-dispatch" onclick="dispatchUnits()">🚁 Dispatch Response Units</button>
+          <div class="btn-dispatch-note">Confirming this action will immediately notify the nearest specialized units.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal-box">
+        <div class="modal-icon" id="modalIcon">⚠️</div>
+        <div class="modal-title" id="modalTitle">Confirm Action</div>
+        <div class="modal-desc" id="modalDesc">Are you sure?</div>
+        <div class="modal-btns">
+          <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+          <button class="modal-confirm" id="modalConfirmBtn" onclick="executeModalAction()">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="admin.js"></script>
+</body>
+</html>
