@@ -344,71 +344,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-async function handleRegisterAdmin() {
-  clearAlerts();
-  clearErrors();
-
-  const nameEl = document.getElementById('registerName');
-  const emailEl = document.getElementById('registerEmail');
-  const inviteEl = document.getElementById('registerInviteCode');
-  const pwEl = document.getElementById('registerPassword');
-
-  const fullName = nameEl.value.trim();
-  const email = normalizeEmail(emailEl.value);
-  const inviteCode = inviteEl.value.trim();
-  const password = pwEl.value;
-
-  if (!fullName || !email || !inviteCode || password.length < 8) {
-    showAlert('registerAlert', 'registerAlertMsg',
-      'Complete all fields, and use a password with at least 8 characters.');
-    return;
-  }
-
-  setLoading('registerBtn', true);
-
-  try {
-    const { data, error } = await adminClient.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-          account_type: 'admin',
-        },
-      },
-    });
-
-    if (error) throw error;
-
-    if (!data.session) {
-      showAlert('registerAlert', 'registerAlertMsg',
-        'Registration created, but no session was returned. In adminClient Auth, disable email confirmation or confirm the email first, then log in.');
-      return;
-    }
-
-    const { error: inviteError } = await adminClient.rpc('consume_admin_invite', {
-      invite_code_input: inviteCode,
-      admin_full_name: fullName,
-    });
-
-    if (inviteError) {
-      await adminClient.auth.signOut();
-      showAlert('registerAlert', 'registerAlertMsg',
-        inviteError.message || 'Invalid or expired admin invitation code.');
-      return;
-    }
-
-    showToastLogin('Admin account created. Redirecting to dashboard...', 'success');
-    setTimeout(() => window.location.href = getAdminPageUrl(), 1200);
-  } catch (err) {
-    showAlert('registerAlert', 'registerAlertMsg',
-      err.message || 'Unable to register this admin account right now.');
-    console.error('[AKSYON] Admin registration error:', err);
-  } finally {
-    setLoading('registerBtn', false);
-  }
-}
-
 // ── ENTER KEY SUPPORT ────────────────────────────────
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return;
@@ -416,7 +351,6 @@ document.addEventListener('keydown', (e) => {
   if (active === 'viewLogin')       handleLogin();
   else if (active === 'viewForgot') handleForgot();
   else if (active === 'viewNewPassword') handleNewPassword();
-  else if (active === 'viewRegister') handleRegisterAdmin();
 });
 
 /* ═══════════════════════════════════════════════════════
@@ -1116,6 +1050,34 @@ function openPanel(id) {
   const commentInput = document.getElementById('adminCommentInput');
   if (commentInput) commentInput.value = '';
 
+  // ── NEW: Dynamic UI Buttons Based on Status ──
+  const actionWrapper = document.querySelector('.panel-actions');
+  if (actionWrapper) {
+    // If the report is already finished (resolved) or flagged as false, show minimal buttons
+    if (inc.status === 'resolved' || inc.status === 'false') {
+      actionWrapper.innerHTML = `
+        <div class="action-row" style="margin-top:8px;">
+          <button onclick="closePanel()" style="flex:1; padding:12px; border-radius:9px; background:var(--gray-200); color:var(--gray-600); font-weight:600; font-size:13.5px; font-family:'DM Sans', sans-serif; border:none; cursor:pointer; transition:background .15s;" onmouseover="this.style.background='var(--gray-300)'" onmouseout="this.style.background='var(--gray-200)'">✖ Close Panel</button>
+          <button class="btn-delete" onclick="deleteReport()">🗑 Delete Report</button>
+        </div>
+      `;
+    } else {
+      // Show all dispatcher buttons for active reports
+      actionWrapper.innerHTML = `
+        <div class="action-row">
+          <button class="btn-review" onclick="reviewIncident()">🔎 Mark as Reviewed</button>
+          <button class="btn-resolve" onclick="resolveIncident()">✅ Mark as Resolved</button>
+        </div>
+        <div class="action-row">
+          <button class="btn-flag" onclick="flagIncident()">🚩 Flag as False</button>
+          <button class="btn-delete" onclick="deleteReport()">🗑 Delete Report</button>
+        </div>
+        <button class="btn-dispatch" onclick="dispatchUnits()">🚁 Dispatch Response Units</button>
+        <div class="btn-dispatch-note">Review the report first, then dispatch and leave updates through the comment thread.</div>
+      `;
+    }
+  }
+
   document.getElementById('detailOverlay').classList.add('open');
   document.getElementById('detailPanel').classList.add('open');
 }
@@ -1240,7 +1202,7 @@ function openSelectedMap() {
   if (!selectedId) return;
   const inc = incidents.find(i => i.id === selectedId);
   if (!inc || !Number.isFinite(inc.lat) || !Number.isFinite(inc.lng)) return;
-  window.open(`https://www.google.com/maps?q=${inc.lat},${inc.lng}`, '_blank');
+  window.open(`https://maps.google.com/?q=${inc.lat},${inc.lng}`, '_blank');
 }
 
 function renderPanelComments(inc) {
@@ -1388,7 +1350,7 @@ function resolveIncident() {
         inc.status = 'resolved';
         updateStats();
         renderIncidents();
-        closePanel();
+        openPanel(inc.id); // Re-open the panel to refresh the buttons cleanly!
         showToast('✅ Resolved: ' + inc.id, 'success');
       } catch (err) {
         showToast('Failed to update: ' + err.message, 'error');
@@ -1411,7 +1373,7 @@ function flagIncident() {
         inc.status = 'false';
         updateStats();
         renderIncidents();
-        closePanel();
+        openPanel(inc.id); // Re-open the panel to refresh the buttons!
         showToast('🚩 Flagged: ' + inc.id, 'info');
       } catch (err) {
         showToast('Failed to update: ' + err.message, 'error');
@@ -1521,11 +1483,11 @@ function showToast(message, type = 'info') {
 
 function escapeHtml(value) {
   return String(value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/&/g, '&')
+    .replace(/</g, '<')
+    .replace(/>/g, '>')
+    .replace(/"/g, '"')
+    .replace(/'/g, '');
 }
 
 // ── HELPERS ────────────────────────────────────────
