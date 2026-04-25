@@ -1089,8 +1089,11 @@ async function saveNewPassword() {
 
 async function handleSignOut() {
   showModal('🚪', 'Sign Out?', 'You will be returned to the login page.', 'Sign Out', '#ef4444', async () => {
-    await adminClient.auth.signOut();
-    showAdminAuth('viewLogin');
+    try {
+      await adminClient.auth.signOut();
+    } catch (_) {}
+    // Force a full page reload so all in-memory state and the session cookie are cleared
+    window.location.reload();
   });
 }
 
@@ -1140,42 +1143,103 @@ function destroyAdminMap() {
 
 function renderPanelMedia(inc) {
   const panelMedia = document.getElementById('panelMedia');
+  const panelPhotos = document.getElementById('panelPhotos');
   if (!panelMedia) return;
 
   destroyAdminMap();
   panelMedia.className = 'panel-media';
 
+  // ── MAP ──────────────────────────────────────────────────────────────
   if (Number.isFinite(inc.lat) && Number.isFinite(inc.lng) && window.L) {
     panelMedia.innerHTML = `
       <div id="adminMapCanvas" class="admin-map-canvas"></div>
-      ${inc.photoUrl ? `<img src="${inc.photoUrl}" alt="Report evidence" class="panel-photo-thumb">` : ''}
       <div class="map-placeholder" onclick="openSelectedMap()">🗺️ Open full map</div>
     `;
-
     requestAnimationFrame(() => {
       adminMapInstance = L.map('adminMapCanvas', {
         zoomControl: true,
         attributionControl: false,
         scrollWheelZoom: false,
       }).setView([inc.lat, inc.lng], 16);
-
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(adminMapInstance);
       L.marker([inc.lat, inc.lng]).addTo(adminMapInstance);
       L.circle([inc.lat, inc.lng], {
-        radius: 45,
-        color: '#7B1113',
-        fillColor: '#7B1113',
-        fillOpacity: 0.12,
-        weight: 2,
+        radius: 45, color: '#7B1113', fillColor: '#7B1113',
+        fillOpacity: 0.12, weight: 2,
       }).addTo(adminMapInstance);
       setTimeout(() => adminMapInstance?.invalidateSize(), 80);
     });
+  } else {
+    // No coords — show a placeholder icon
+    panelMedia.innerHTML = `<span style="font-size:52px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))">${inc.icon}</span>`;
+  }
+
+  // ── PHOTOS / VIDEOS BELOW THE MAP ────────────────────────────────────
+  if (!panelPhotos) return;
+  const attachments = Array.isArray(inc._raw?.attachments) ? inc._raw.attachments : [];
+  // Also fall back to the photoUrl extracted during normalizeIncident
+  const singlePhoto = !attachments.length && inc.photoUrl
+    ? [{ url: inc.photoUrl, type: 'image/jpeg', name: 'Photo' }]
+    : [];
+  const allMedia = attachments.length ? attachments : singlePhoto;
+
+  if (!allMedia.length) {
+    panelPhotos.style.display = 'none';
+    panelPhotos.innerHTML = '';
     return;
   }
 
-  panelMedia.innerHTML = inc.photoUrl
-    ? `<img src="${inc.photoUrl}" style="width:100%;height:100%;object-fit:cover" alt="Report evidence">`
-    : `<span style="font-size:52px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.3))">${inc.icon}</span>`;
+  panelPhotos.style.display = 'block';
+  panelPhotos.innerHTML = `
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+      color:var(--gray-400);margin-bottom:10px;">📎 Attachments (${allMedia.length})</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;padding-bottom:4px;">
+      ${allMedia.map((att, i) => {
+        const isImg = att.type && String(att.type).startsWith('image/');
+        const isVid = att.type && String(att.type).startsWith('video/');
+        return `
+          <div onclick="openAdminMediaViewer('${escapeHtml(att.url)}','${escapeHtml(att.type||'image/jpeg')}')"
+            style="cursor:pointer;position:relative;width:90px;height:90px;border-radius:12px;
+              overflow:hidden;border:2px solid var(--gray-200);background:var(--gray-100);
+              display:flex;align-items:center;justify-content:center;flex-shrink:0;
+              box-shadow:var(--shadow-sm);transition:transform .15s;">
+            ${isImg
+              ? `<img src="${escapeHtml(att.url)}" alt="Attachment ${i+1}"
+                  style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='📎'">`
+              : isVid
+              ? `<div style="width:100%;height:100%;background:#1a1a1a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;">
+                  <span style="font-size:28px;">🎥</span>
+                  <span style="font-size:9px;color:#aaa;font-weight:600;">VIDEO</span>
+                </div>`
+              : `<span style="font-size:28px;">📎</span>`
+            }
+            <div style="position:absolute;inset:0;background:rgba(0,0,0,0);transition:background .15s;"
+              onmouseenter="this.style.background='rgba(0,0,0,0.12)'"
+              onmouseleave="this.style.background='rgba(0,0,0,0)'"></div>
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function openAdminMediaViewer(url, type) {
+  const viewer = document.getElementById('adminMediaViewer');
+  const content = document.getElementById('adminMediaViewerContent');
+  if (!viewer || !content || !url) return;
+  const isVid = String(type || '').startsWith('video/');
+  content.innerHTML = isVid
+    ? `<video controls autoplay playsinline src="${url}"
+        style="max-width:100%;max-height:88vh;border-radius:12px;background:#111;"></video>`
+    : `<img src="${url}" alt="Report attachment"
+        style="max-width:100%;max-height:88vh;border-radius:12px;background:#111;"
+        onerror="window.open('${url}','_blank')">`;
+  viewer.style.display = 'flex';
+}
+
+function closeAdminMediaViewer() {
+  const viewer = document.getElementById('adminMediaViewer');
+  const content = document.getElementById('adminMediaViewerContent');
+  if (viewer) viewer.style.display = 'none';
+  if (content) content.innerHTML = '';
 }
 
 function openSelectedMap() {
@@ -1561,5 +1625,3 @@ const DEMO_BARANGAYS = [
   { id:6, name:'Tungkong Mangga',zone:'4', population:7400, contact_person:'Kagawad Bautista',contact_number:'0917-111-0006' },
   { id:7, name:'Poblacion',      zone:'1', population:9100, contact_person:'Kagawad Mendoza', contact_number:'0917-111-0007' },
 ];
-
-
