@@ -76,7 +76,6 @@ async function requireAdminSession() {
   return { session, profile };
 }
 
-
 /* ═══════════════════════════════════════════════════════
    AKSYON! — Auth Module (admin.html)
    Handles: login, forgot password, password reset via adminClient
@@ -419,7 +418,6 @@ document.addEventListener('keydown', (e) => {
   else if (active === 'viewNewPassword') handleNewPassword();
   else if (active === 'viewRegister') handleRegisterAdmin();
 });
-
 
 /* ═══════════════════════════════════════════════════════
    AKSYON! — Admin Dashboard · admin.js
@@ -1086,20 +1084,10 @@ async function saveNewPassword() {
 async function handleSignOut() {
   showModal('🚪', 'Sign Out?', 'You will be returned to the login page.', 'Sign Out', '#ef4444', async () => {
     try {
-      // 1. Tell Supabase to kill the session securely
       await adminClient.auth.signOut();
-    } catch (err) {
-      console.error('Sign out error:', err);
-    } finally {
-      // 2. Nuke local storage so the session can't auto-restore
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('sb-')) {
-          localStorage.removeItem(key);
-        }
-      });
-      // 3. Clean redirect
-      window.location.replace(window.location.pathname);
-    }
+    } catch (_) {}
+    // Force a full page reload so all in-memory state and the session cookie are cleared
+    window.location.reload();
   });
 }
 
@@ -1252,7 +1240,7 @@ function openSelectedMap() {
   if (!selectedId) return;
   const inc = incidents.find(i => i.id === selectedId);
   if (!inc || !Number.isFinite(inc.lat) || !Number.isFinite(inc.lng)) return;
-  window.open(`https://maps.google.com/?q=${inc.lat},${inc.lng}`, '_blank');
+  window.open(`https://www.google.com/maps?q=${inc.lat},${inc.lng}`, '_blank');
 }
 
 function renderPanelComments(inc) {
@@ -1533,11 +1521,11 @@ function showToast(message, type = 'info') {
 
 function escapeHtml(value) {
   return String(value || '')
-    .replace(/&/g, '&')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"')
-    .replace(/'/g, ''');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ── HELPERS ────────────────────────────────────────
