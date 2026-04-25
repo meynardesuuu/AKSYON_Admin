@@ -155,9 +155,6 @@
           <a href="#" class="forgot-link" onclick="showView('viewForgot'); return false;">FORGOT PASSWORD?</a>
         </div>
         <button class="btn-login" id="loginBtn" onclick="handleLogin()"><span class="btn-text">LOGIN</span><div class="spinner"></div></button>
-        <button class="btn-login" type="button" onclick="showView('viewRegister')" style="margin-top:10px;background:#fff;color:#5a0d0e;border:1.5px solid #eef0f4;box-shadow:none;">
-          <span class="btn-text">REGISTER AS ADMIN</span>
-        </button>
         <div class="login-footer">Authorized personnel only<br>Contact system administrator for access</div>
       </div>
 
@@ -209,34 +206,6 @@
           <div class="field-error" id="confirmPwError">Passwords do not match.</div>
         </div>
         <button class="btn-login" id="newPwBtn" onclick="handleNewPassword()"><span class="btn-text">RESET PASSWORD</span><div class="spinner"></div></button>
-      </div>
-
-      <div class="view" id="viewRegister">
-        <button class="back-btn" onclick="showView('viewLogin')">← Back to Login</button>
-        <div class="view-title">Dispatcher Registration</div>
-        <div class="view-subtitle">Use the invitation code provided by the barangay system administrator to create your dispatcher account.</div>
-        <div class="alert error" id="registerAlert"><span>⚠️</span><span id="registerAlertMsg">Registration failed.</span></div>
-        <div class="form-group">
-          <label class="form-label" for="registerName">Full Name</label>
-          <div class="input-wrap"><span class="input-icon">👤</span><input class="form-input" type="text" id="registerName" placeholder="Dispatcher full name"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="registerEmail">Official Email</label>
-          <div class="input-wrap"><span class="input-icon">✉️</span><input class="form-input" type="email" id="registerEmail" placeholder="dispatcher@aksyon.gov.ph"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="registerInviteCode">Invitation Code</label>
-          <div class="input-wrap"><span class="input-icon">🔐</span><input class="form-input" type="text" id="registerInviteCode" placeholder="Enter invite code"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" for="registerPassword">Password</label>
-          <div class="input-wrap">
-            <span class="input-icon">🔑</span>
-            <input class="form-input" type="password" id="registerPassword" placeholder="••••••••" oninput="checkStrength(this.value)">
-            <button class="toggle-pw" onclick="togglePw('registerPassword', this)" type="button">👁</button>
-          </div>
-        </div>
-        <button class="btn-login" id="registerBtn" onclick="handleRegisterAdmin()"><span class="btn-text">CREATE ADMIN ACCOUNT</span><div class="spinner"></div></button>
       </div>
     </div>
   </div>
@@ -393,10 +362,8 @@
           <div class="map-placeholder">🗺️ View on Map</div>
         </div>
 
-        <!-- Photos / videos from the report — rendered below the map by renderPanelMedia() -->
         <div id="panelPhotos" style="display:none;padding:12px 16px 0;"></div>
 
-        <!-- Lightbox for admin panel attachments -->
         <div id="adminMediaViewer" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;" onclick="closeAdminMediaViewer()">
           <button onclick="closeAdminMediaViewer()" style="position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:50%;border:none;background:rgba(255,255,255,0.18);color:#fff;font-size:20px;cursor:pointer;z-index:10000;">✕</button>
           <div id="adminMediaViewerContent" onclick="event.stopPropagation()" style="max-width:min(92vw,820px);max-height:88vh;display:flex;align-items:center;justify-content:center;"></div>
