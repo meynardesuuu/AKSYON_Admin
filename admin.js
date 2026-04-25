@@ -1086,15 +1086,18 @@ async function saveNewPassword() {
 async function handleSignOut() {
   showModal('🚪', 'Sign Out?', 'You will be returned to the login page.', 'Sign Out', '#ef4444', async () => {
     try {
+      // 1. Tell Supabase to kill the session securely
       await adminClient.auth.signOut();
     } catch (err) {
       console.error('Sign out error:', err);
     } finally {
+      // 2. Nuke local storage so the session can't auto-restore
       Object.keys(localStorage).forEach(key => {
         if (key.startsWith('sb-')) {
           localStorage.removeItem(key);
         }
       });
+      // 3. Clean redirect
       window.location.replace(window.location.pathname);
     }
   });
@@ -1179,10 +1182,8 @@ function renderPanelMedia(inc) {
 
   // ── PHOTOS / VIDEOS BELOW THE MAP ────────────────────────────────────
   if (!panelPhotos) return;
-  
-  const rawAttachments = inc._raw?.attachments || inc.attachments || [];
-  const attachments = Array.isArray(rawAttachments) ? rawAttachments : [];
-  
+  const attachments = Array.isArray(inc._raw?.attachments) ? inc._raw.attachments : [];
+  // Also fall back to the photoUrl extracted during normalizeIncident
   const singlePhoto = !attachments.length && inc.photoUrl
     ? [{ url: inc.photoUrl, type: 'image/jpeg', name: 'Photo' }]
     : [];
@@ -1198,25 +1199,29 @@ function renderPanelMedia(inc) {
   panelPhotos.innerHTML = `
     <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
       color:var(--gray-400);margin-bottom:10px;">📎 Attachments (${allMedia.length})</div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;padding-bottom:12px;">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;padding-bottom:4px;">
       ${allMedia.map((att, i) => {
-        const safeUrl = escapeHtml(att.url);
-        const safeType = escapeHtml(att.type || 'image/jpeg');
-        const isImg = safeType.startsWith('image/');
-        const isVid = safeType.startsWith('video/');
-        
+        const isImg = att.type && String(att.type).startsWith('image/');
+        const isVid = att.type && String(att.type).startsWith('video/');
         return `
-          <div onclick="openAdminMediaViewer('${safeUrl}','${safeType}')"
+          <div onclick="openAdminMediaViewer('${escapeHtml(att.url)}','${escapeHtml(att.type||'image/jpeg')}')"
             style="cursor:pointer;position:relative;width:90px;height:90px;border-radius:12px;
               overflow:hidden;border:2px solid var(--gray-200);background:var(--gray-100);
               display:flex;align-items:center;justify-content:center;flex-shrink:0;
               box-shadow:var(--shadow-sm);transition:transform .15s;">
             ${isImg
-              ? `<img src="${safeUrl}" style="width:100%;height:100%;object-fit:cover;">`
+              ? `<img src="${escapeHtml(att.url)}" alt="Attachment ${i+1}"
+                  style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='📎'">`
               : isVid
-              ? `<div style="width:100%;height:100%;background:#1a1a1a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;"><span style="font-size:28px;">🎥</span></div>`
+              ? `<div style="width:100%;height:100%;background:#1a1a1a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;">
+                  <span style="font-size:28px;">🎥</span>
+                  <span style="font-size:9px;color:#aaa;font-weight:600;">VIDEO</span>
+                </div>`
               : `<span style="font-size:28px;">📎</span>`
             }
+            <div style="position:absolute;inset:0;background:rgba(0,0,0,0);transition:background .15s;"
+              onmouseenter="this.style.background='rgba(0,0,0,0.12)'"
+              onmouseleave="this.style.background='rgba(0,0,0,0)'"></div>
           </div>`;
       }).join('')}
     </div>`;
@@ -1511,8 +1516,9 @@ function closeModal() {
 }
 
 function executeModalAction() {
-  closeModal();
-  if (modalCallback) modalCallback();
+  const actionToRun = modalCallback; // Save the action first!
+  closeModal();                      // Hide the modal (which sets modalCallback to null)
+  if (actionToRun) actionToRun();    // Run the saved action safely
 }
 
 // ── TOAST ──────────────────────────────────────────
@@ -1531,7 +1537,7 @@ function escapeHtml(value) {
     .replace(/</g, '<')
     .replace(/>/g, '>')
     .replace(/"/g, '"')
-    .replace(/'/g, '&#39;');
+    .replace(/'/g, ''');
 }
 
 // ── HELPERS ────────────────────────────────────────
