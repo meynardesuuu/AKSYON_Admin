@@ -9,6 +9,7 @@ const adminClient = window.supabase?.createClient
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        storageKey: 'aksyon-admin-auth',
       },
     })
   : null;
@@ -1020,7 +1021,12 @@ async function handleSignOut() {
     try {
       await adminClient.auth.signOut();
     } catch (_) {}
-    // Force a full page reload so all in-memory state and the session cookie are cleared
+    
+    Object.keys(localStorage).forEach(key => {
+      if (key.includes('aksyon-admin') || key.startsWith('sb-')) {
+        localStorage.removeItem(key);
+      }
+    });
     window.location.reload();
   });
 }
