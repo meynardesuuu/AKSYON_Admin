@@ -23,7 +23,7 @@
   --white: #ffffff;
   --sidebar-w: 220px;
   --header-h: 62px;
-  --detail-w: 460px;
+  --list-w: 420px;
   --shadow-sm: 0 1px 4px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
   --shadow-md: 0 4px 16px rgba(0,0,0,.10), 0 1px 4px rgba(0,0,0,.07);
   --shadow-lg: 0 12px 40px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.08);
@@ -197,7 +197,7 @@ body {
   height: 100vh;
   display: grid;
   grid-template-rows: var(--header-h) 1fr;
-  grid-template-columns: 1fr var(--detail-w);
+  grid-template-columns: var(--list-w) 1fr;
   grid-template-areas:
     "hdr hdr"
     "cnt dtl";
@@ -330,12 +330,13 @@ body {
   grid-area: cnt;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 24px 28px;
+  padding: 18px 16px;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 16px;
   min-width: 0;
   border-right: 1px solid var(--gray-200);
+  background: var(--gray-100);
 }
 
 /* ────────────────────────────────
@@ -343,27 +344,27 @@ body {
 ──────────────────────────────── */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 .stat-card {
   background: var(--white);
   border-radius: var(--radius);
-  padding: 18px 20px;
+  padding: 14px 16px;
   box-shadow: var(--shadow-sm);
   border: 1.5px solid var(--gray-200);
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   cursor: default;
   transition: box-shadow .2s, border-color .2s;
 }
 .stat-card:hover { box-shadow: var(--shadow-md); border-color: var(--gray-300); }
 .stat-icon {
-  width: 44px; height: 44px;
-  border-radius: 10px;
+  width: 36px; height: 36px;
+  border-radius: 9px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 20px;
+  font-size: 17px;
   flex-shrink: 0;
 }
 .stat-icon.red    { background: var(--red-pale); }
@@ -380,7 +381,7 @@ body {
 }
 .stat-value {
   font-family: 'Syne', sans-serif;
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 800;
   line-height: 1.1;
   color: var(--gray-800);
@@ -400,15 +401,17 @@ body {
    FEED HEADER
 ──────────────────────────────── */
 .feed-header {
-  display: flex; align-items: center; gap: 10px;
-  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
 }
 .feed-title {
   font-family: 'Syne', sans-serif;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--gray-800);
   flex: 1;
+  min-width: 0;
 }
 .live-badge {
   display: inline-flex; align-items: center; gap: 5px;
@@ -420,8 +423,9 @@ body {
   font-weight: 600;
 }
 .filter-chips {
-  display: flex; gap: 6px;
-  margin-left: 12px;
+  display: flex; gap: 5px;
+  flex-wrap: wrap;
+  margin-left: 0;
 }
 .chip {
   padding: 5px 12px;
@@ -453,10 +457,10 @@ body {
   box-shadow: var(--shadow-sm);
   overflow: hidden;
   cursor: pointer;
-  transition: box-shadow .2s, border-color .2s, transform .15s;
+  transition: box-shadow .2s, border-color .2s;
   animation: fadeUp .3s ease both;
   display: grid;
-  grid-template-columns: 100px 1fr;
+  grid-template-columns: 88px 1fr;
   align-items: stretch;
 }
 @keyframes fadeUp {
@@ -475,7 +479,7 @@ body {
 
 .card-media {
   height: 100%;
-  min-height: 80px;
+  min-height: 90px;
   background: var(--gray-200);
   position: relative;
   overflow: hidden;
@@ -521,10 +525,14 @@ body {
 }
 .card-id-title { flex: 1; min-width: 0; }
 .card-id {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--gray-400);
   letter-spacing: .4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 .card-title {
   font-family: 'Syne', sans-serif;
@@ -888,14 +896,13 @@ body {
 .empty-state-text { font-size: 14px; font-weight: 500; }
 
 @media (max-width: 1100px) {
-  :root { --detail-w: 380px; }
+  :root { --list-w: 360px; }
   .header { align-items: flex-start; padding: 16px 20px; }
   .search-bar { width: min(280px, 100%); }
   .sort-controls { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
 }
 
 @media (max-width: 900px) {
-  :root { --detail-w: 0px; }
   body { overflow-y: auto; }
   .sidebar { position: static; width: 100%; min-height: auto; }
   #adminAppShell { flex-direction: column; }
@@ -929,16 +936,8 @@ body {
     z-index: 201;
     border-left: none;
   }
-  .detail-panel.open {
-    transform: translateX(0) !important;
-  }
-  .detail-panel:not(.open) {
-    background: var(--white);
-  }
-  .incidents-grid {
-    grid-template-columns: 1fr;
-  }
-  .incident-card {
-    grid-template-columns: 90px 1fr;
-  }
+  .detail-panel.open { transform: translateX(0) !important; }
+  .detail-panel:not(.open) { background: var(--white); }
+  .incidents-grid { grid-template-columns: 1fr; }
+  .incident-card { grid-template-columns: 90px 1fr; }
 }
