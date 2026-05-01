@@ -356,6 +356,7 @@ function renderIncidents() {
     grid.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div><div class="empty-state-text">No reports found matching your criteria.</div></div>`;
     return;
   }
+  
   grid.innerHTML = list.map((inc, idx) => `
     <div class="incident-card ${selectedId === inc.id ? 'selected' : ''}" style="animation-delay:${idx * 0.04}s" onclick="openPanel('${inc.id}')">
       <div class="card-media">
@@ -363,17 +364,20 @@ function renderIncidents() {
           <div class="card-type-badge">${inc.type}</div>
           ${!inc.photoUrl ? `<span style="filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))">${inc.icon}</span>` : ''}
         </div>
-        <div class="media-img map" style="align-items:center;justify-content:center;gap:4px;flex-direction:column;">
-          <span>🗺️</span><span style="font-size:9px;font-weight:600;color:#2d7a3a;letter-spacing:.3px">${inc.barangay}</span>
-        </div>
       </div>
       <div class="card-body">
-        <div class="card-top">
-          <div class="card-id-title"><div class="card-id">${inc.id}</div><div class="card-title">${inc.title}</div></div>
-          <div class="badges">${priorityBadge(inc.priority)}${statusBadge(inc.status)}</div>
+        <div class="card-id-title">
+          <div class="card-id">${inc.id}</div>
+          <div class="card-title">${inc.title}</div>
         </div>
-        <div class="card-desc">${inc.desc}</div>
-        <div class="card-footer"><div class="card-meta">⏱️ ${inc.time}</div><button class="view-btn">View Details →</button></div>
+        <div style="flex: 1;"></div> <!-- Spacer to push footer to the bottom -->
+        <div class="card-footer">
+          <div class="card-meta">⏱️ ${inc.time}</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div class="badges">${priorityBadge(inc.priority)}${statusBadge(inc.status)}</div>
+            <button class="view-btn">View Details →</button>
+          </div>
+        </div>
       </div>
     </div>
   `).join('');
