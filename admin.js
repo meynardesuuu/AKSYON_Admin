@@ -402,13 +402,31 @@ function statusBadge(s) {
 function setNav(el, section) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   el.classList.add('active');
+  
   const contentEl = document.querySelector('.content');
-  if (section === 'complaints') { currentFilter = 'all'; renderMainFeed(); document.querySelector('.filter-chips .chip').click(); }
-  else if (section === 'resolved') { currentFilter = 'resolved'; renderMainFeed(); document.querySelectorAll('.filter-chips .chip')[3]?.click(); }
-  else if (section === 'false') { currentFilter = 'false'; renderMainFeed(); document.querySelectorAll('.filter-chips .chip').forEach(c => c.classList.remove('active')); }
-  else if (section === 'users') { renderSection(contentEl, buildUsersSection()); }
-  else if (section === 'barangay') { renderSection(contentEl, buildBarangaySection()); }
-  else if (section === 'settings') { renderSection(contentEl, buildSettingsSection()); }
+  const mainEl = document.querySelector('.main'); 
+
+  closePanel();
+
+  if (section === 'complaints') { 
+    mainEl.classList.remove('layout-full'); 
+    currentFilter = 'all'; 
+    renderMainFeed(); 
+    const firstChip = document.querySelector('.filter-chips .chip');
+    if(firstChip) firstChip.click(); 
+  } 
+  else if (section === 'users') { 
+    mainEl.classList.add('layout-full');
+    renderSection(contentEl, buildUsersSection()); 
+  } 
+  else if (section === 'barangay') { 
+    mainEl.classList.add('layout-full'); 
+    renderSection(contentEl, buildBarangaySection()); 
+  } 
+  else if (section === 'settings') { 
+    mainEl.classList.add('layout-full'); 
+    renderSection(contentEl, buildSettingsSection()); 
+  }
 }
 
 let MAIN_FEED_HTML = '';
