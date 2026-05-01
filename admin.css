@@ -406,6 +406,7 @@ body {
   margin-bottom: 12px;
   flex-wrap: wrap;
 }
+
 .feed-title {
   font-family: 'Syne', sans-serif;
   padding-bottom: 16px;
@@ -415,6 +416,7 @@ body {
   flex: 1;
   min-width: 0;
 }
+
 .live-badge {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 4px 10px;
