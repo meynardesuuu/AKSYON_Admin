@@ -931,3 +931,17 @@ body {
   .incidents-grid { grid-template-columns: 1fr; }
   .incident-card { grid-template-columns: 120px 1fr; }
 }
+
+/* ────────────────────────────────
+   FULL PAGE LAYOUT MODIFIER
+──────────────────────────────── */
+.main.layout-full {
+  grid-template-columns: 1fr !important;
+  grid-template-areas:
+    "hdr"
+    "cnt" !important;
+}
+
+.main.layout-full .detail-panel {
+  display: none !important;
+}
