@@ -23,6 +23,7 @@
   --white: #ffffff;
   --sidebar-w: 220px;
   --header-h: 62px;
+  --detail-w: 460px;
   --shadow-sm: 0 1px 4px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.05);
   --shadow-md: 0 4px 16px rgba(0,0,0,.10), 0 1px 4px rgba(0,0,0,.07);
   --shadow-lg: 0 12px 40px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.08);
@@ -187,16 +188,19 @@ body {
 }
 
 /* ────────────────────────────────
-   MAIN AREA
+   MAIN AREA — Email-style grid
 ──────────────────────────────── */
 .main {
   margin-left: var(--sidebar-w);
-  flex: 1;
   width: calc(100vw - var(--sidebar-w));
   max-width: calc(100vw - var(--sidebar-w));
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: var(--header-h) 1fr;
+  grid-template-columns: 1fr var(--detail-w);
+  grid-template-areas:
+    "hdr hdr"
+    "cnt dtl";
   overflow: hidden;
 }
 
@@ -204,6 +208,7 @@ body {
    HEADER
 ──────────────────────────────── */
 .header {
+  grid-area: hdr;
   min-height: var(--header-h);
   height: auto;
   background: var(--white);
@@ -213,8 +218,6 @@ body {
   flex-wrap: wrap;
   padding: 0 28px;
   gap: 16px;
-  position: sticky;
-  top: 0;
   z-index: 50;
   box-shadow: var(--shadow-sm);
 }
@@ -324,7 +327,7 @@ body {
    MAIN CONTENT
 ──────────────────────────────── */
 .content {
-  flex: 1;
+  grid-area: cnt;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 24px 28px;
@@ -332,6 +335,7 @@ body {
   flex-direction: column;
   gap: 22px;
   min-width: 0;
+  border-right: 1px solid var(--gray-200);
 }
 
 /* ────────────────────────────────
@@ -438,8 +442,8 @@ body {
 ──────────────────────────────── */
 .incidents-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 14px;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
 .incident-card {
@@ -451,6 +455,9 @@ body {
   cursor: pointer;
   transition: box-shadow .2s, border-color .2s, transform .15s;
   animation: fadeUp .3s ease both;
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  align-items: stretch;
 }
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(12px); }
@@ -459,20 +466,21 @@ body {
 .incident-card:hover {
   box-shadow: var(--shadow-md);
   border-color: var(--red-light);
-  transform: translateY(-1px);
 }
 .incident-card.selected {
   border-color: var(--red);
   box-shadow: 0 0 0 3px rgba(123,17,19,.12), var(--shadow-md);
+  background: var(--red-pale);
 }
 
 .card-media {
-  height: 130px;
+  height: 100%;
+  min-height: 80px;
   background: var(--gray-200);
   position: relative;
   overflow: hidden;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
 }
 .media-img {
   background: var(--gray-300);
@@ -504,7 +512,7 @@ body {
   backdrop-filter: blur(4px);
 }
 
-.card-body { padding: 14px 16px 12px; }
+.card-body { padding: 10px 14px 10px; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
 .card-top {
   display: flex; align-items: flex-start;
   justify-content: space-between;
@@ -549,12 +557,12 @@ body {
 .badge.false       { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
 
 .card-desc {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--gray-500);
-  line-height: 1.45;
-  margin-bottom: 10px;
+  line-height: 1.4;
+  margin-bottom: 8px;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -584,32 +592,56 @@ body {
 .view-btn:hover { background: var(--red-pale); }
 
 /* ────────────────────────────────
-   DETAIL PANEL
+   DETAIL PANEL — Inline email pane
 ──────────────────────────────── */
+
+/* Hide the dark overlay entirely — no modal slide-in needed */
 .detail-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,.25);
-  z-index: 200;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .25s;
+  display: none !important;
 }
-.detail-overlay.open { opacity: 1; pointer-events: all; }
 
 .detail-panel {
-  position: fixed;
-  top: 0; right: 0; bottom: 0;
-  width: min(460px, 100vw);
+  grid-area: dtl;
+  position: relative;        /* override fixed */
+  top: auto; right: auto; bottom: auto; left: auto;
+  width: auto;               /* fill grid column */
+  height: 100%;
+  transform: none !important;
   background: var(--white);
-  box-shadow: var(--shadow-lg);
-  z-index: 201;
-  transform: translateX(100%);
-  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  box-shadow: none;
+  border-left: 1px solid var(--gray-200);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  z-index: 1;
 }
-.detail-panel.open { transform: translateX(0); }
+
+/* Empty-state placeholder when no report is selected */
+.detail-panel:not(.open) > .panel-header,
+.detail-panel:not(.open) > .panel-body {
+  visibility: hidden;
+  opacity: 0;
+}
+
+.detail-panel:not(.open)::after {
+  content: 'Click any of the report to see more details...';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--gray-400);
+  font-size: 13px;
+  font-style: italic;
+  font-weight: 500;
+  white-space: nowrap;
+  pointer-events: none;
+  text-align: center;
+}
+
+/* Background tint for empty state */
+.detail-panel:not(.open) {
+  background: var(--gray-100);
+}
 
 .panel-header {
   padding: 18px 20px 16px;
@@ -856,14 +888,57 @@ body {
 .empty-state-text { font-size: 14px; font-weight: 500; }
 
 @media (max-width: 1100px) {
+  :root { --detail-w: 380px; }
   .header { align-items: flex-start; padding: 16px 20px; }
-  .search-bar { width: min(320px, 100%); }
+  .search-bar { width: min(280px, 100%); }
   .sort-controls { width: 100%; justify-content: flex-start; flex-wrap: wrap; }
 }
 
 @media (max-width: 900px) {
+  :root { --detail-w: 0px; }
   body { overflow-y: auto; }
   .sidebar { position: static; width: 100%; min-height: auto; }
   #adminAppShell { flex-direction: column; }
-  .main { margin-left: 0; width: 100%; max-width: 100%; min-height: auto; }
+  .main {
+    margin-left: 0;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "hdr" "cnt";
+  }
+  /* On mobile fall back to the original overlay panel */
+  .detail-overlay {
+    display: block !important;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.25);
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s;
+  }
+  .detail-overlay.open { opacity: 1; pointer-events: all; }
+  .detail-panel {
+    position: fixed !important;
+    top: 0; right: 0; bottom: 0; left: auto;
+    width: min(460px, 100vw) !important;
+    height: 100vh;
+    transform: translateX(100%) !important;
+    transition: transform .3s cubic-bezier(.4,0,.2,1) !important;
+    z-index: 201;
+    border-left: none;
+  }
+  .detail-panel.open {
+    transform: translateX(0) !important;
+  }
+  .detail-panel:not(.open) {
+    background: var(--white);
+  }
+  .incidents-grid {
+    grid-template-columns: 1fr;
+  }
+  .incident-card {
+    grid-template-columns: 90px 1fr;
+  }
 }
