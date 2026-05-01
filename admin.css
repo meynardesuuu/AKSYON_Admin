@@ -400,6 +400,7 @@ body {
 /* ────────────────────────────────
    FEED HEADER
 ──────────────────────────────── */
+
 .feed-header {
   display: flex; align-items: center; gap: 10px;
   margin-bottom: 12px;
@@ -407,6 +408,7 @@ body {
 }
 .feed-title {
   font-family: 'Syne', sans-serif;
+  padding-bottom: 16px;
   font-size: 15px;
   font-weight: 700;
   color: var(--gray-800);
