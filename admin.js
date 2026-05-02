@@ -15,7 +15,6 @@ const adminClient = window.supabase?.createClient
   : null;
 
 const ADMIN_TABLE = 'admin_users';
-const REPORTS_TABLE = 'reports';
 
 function showAdminAuth(defaultView = 'viewLogin') {
   const authShell = document.getElementById('adminAuthShell');
@@ -262,7 +261,6 @@ async function loadIncidents() {
 }
 
 function normalizeIncident(row) {
-  // Added mapping for inprogress and forwarded
   const statusMap = { pending: 'pending', inreview: 'inreview', inprogress: 'inprogress', forwarded: 'forwarded', resolved: 'resolved', false: 'false' };
   const priorityMap = { mataas: 'high', katamtaman: 'medium', mababa: 'low' };
   const locationText = typeof row.location === 'object' ? (row.location?.address || '—') : (row.location || '—');
@@ -326,26 +324,86 @@ function updateStats() {
   document.getElementById('liveCount').textContent = live;
   document.getElementById('liveBadgeCount').textContent = live + ' Live';
   document.getElementById('pendingBadge').textContent = incidents.filter(i => i.status === 'pending').length;
+  
+  updateNotifications();
+}
+
+// ── NOTIFICATIONS LOGIC ──
+function toggleNotifDropdown(e) {
+  e.stopPropagation();
+  document.getElementById('notifDropdown').classList.toggle('show');
+}
+
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('notifDropdown');
+  if (dd && dd.classList.contains('show') && !e.target.closest('.notif-container')) {
+    dd.classList.remove('show');
+  }
+});
+
+function updateNotifications() {
+  const list = document.getElementById('notifList');
+  const dot = document.getElementById('notifDot');
+  if (!list || !dot) return;
+
+  let notifs = [];
+  incidents.forEach(i => {
+    if (i.priority === 'high' && !['resolved', 'false'].includes(i.status)) {
+      notifs.push({ text: `🚨 High Priority: ${i.title}`, time: new Date(i._raw.created_at).getTime(), id: i.id });
+    }
+    if (i.status === 'pending') {
+      notifs.push({ text: `🆕 New Report: ${i.title}`, time: new Date(i._raw.created_at).getTime(), id: i.id });
+    }
+    if (i.comments && i.comments.length > 0) {
+      const last = i.comments[i.comments.length - 1];
+      if (!last.is_admin) {
+        notifs.push({ text: `💬 New reply on: ${i.title}`, time: new Date(last.created_at).getTime(), id: i.id });
+      }
+    }
+  });
+
+  notifs.sort((a, b) => b.time - a.time);
+  notifs = notifs.slice(0, 15);
+
+  if (notifs.length > 0) {
+    dot.style.display = 'block';
+    list.innerHTML = notifs.map(n => `<div class="notif-item" onclick="openPanel('${n.id}')">${escapeHtml(n.text)}<span class="time">${timeAgo(new Date(n.time).toISOString())}</span></div>`).join('');
+  } else {
+    dot.style.display = 'none';
+    list.innerHTML = `<div class="notif-empty">No new notifications</div>`;
+  }
 }
 
 function getFiltered() {
   let list = [...incidents];
-  if (currentFilter === 'pending') list = list.filter(i => i.status === 'pending');
-  // Include working statuses under 'inreview' filter for simplicity
-  else if (currentFilter === 'inreview') list = list.filter(i => i.status === 'inreview' || i.status === 'inprogress' || i.status === 'forwarded');
-  else if (currentFilter === 'resolved') list = list.filter(i => i.status === 'resolved');
-  else if (currentFilter === 'false') list = list.filter(i => i.status === 'false');
+  
+  if (currentFilter === 'pending') {
+    list = list.filter(i => i.status === 'pending');
+  } else if (currentFilter === 'inreview') {
+    list = list.filter(i => ['inreview','inprogress','forwarded'].includes(i.status));
+  } else if (currentFilter === 'resolved') {
+    list = list.filter(i => i.status === 'resolved');
+  } else if (currentFilter === 'false') {
+    list = list.filter(i => i.status === 'false');
+  } else {
+    // If 'all', hide 'resolved' and 'false' from the main active feed
+    list = list.filter(i => !['resolved', 'false'].includes(i.status));
+  }
 
   if (currentSearch) {
     const q = currentSearch.toLowerCase();
     list = list.filter(i => i.title.toLowerCase().includes(q) || i.type.toLowerCase().includes(q) || i.location.toLowerCase().includes(q) || i.reporter.toLowerCase().includes(q) || i.barangay.toLowerCase().includes(q));
   }
+  
   const priorityOrder = { high: 0, medium: 1, low: 2 };
-  if (currentSort === 'priority') list.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+  if (currentSort === 'priority') {
+    list.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+  }
+  
   return list;
 }
 
-function filterByType(type, el) { currentFilter = type; document.querySelectorAll('.filter-chips .chip').forEach(c => c.classList.remove('active')); el.classList.add('active'); renderIncidents(); }
+function filterByType(type, el) { currentFilter = type; document.querySelectorAll('.filter-chips .chip').forEach(c => c.classList.remove('active')); el?.classList.add('active'); renderIncidents(); }
 function sortBy(type, el) { currentSort = type; document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active')); el.classList.add('active'); renderIncidents(); }
 function filterIncidents() { currentSearch = document.getElementById('searchInput').value; renderIncidents(); }
 
@@ -370,7 +428,7 @@ function renderIncidents() {
           <div class="card-id">${inc.id}</div>
           <div class="card-title">${inc.title}</div>
         </div>
-        <div style="flex: 1;"></div> <!-- Spacer to push footer to the bottom -->
+        <div style="flex: 1;"></div> 
         <div class="card-footer">
           <div class="card-meta">⏱️ ${inc.time}</div>
           <div style="display:flex; align-items:center; gap:8px;">
@@ -409,91 +467,86 @@ function setNav(el, section) {
   closePanel();
 
   if (section === 'complaints') { 
-    mainEl.classList.remove('layout-full'); 
+    if(mainEl) mainEl.classList.remove('layout-full'); 
     currentFilter = 'all'; 
+    document.getElementById('incidentsGridContainer').style.display = 'block';
+    document.getElementById('customPageContainer').style.display = 'none';
     renderMainFeed(); 
     const firstChip = document.querySelector('.filter-chips .chip');
     if(firstChip) firstChip.click(); 
   } 
+  else if (section === 'resolved') {
+    if(mainEl) mainEl.classList.remove('layout-full'); 
+    currentFilter = 'resolved'; 
+    document.getElementById('incidentsGridContainer').style.display = 'block';
+    document.getElementById('customPageContainer').style.display = 'none';
+    renderMainFeed(); 
+  }
+  else if (section === 'false') {
+    if(mainEl) mainEl.classList.remove('layout-full'); 
+    currentFilter = 'false'; 
+    document.getElementById('incidentsGridContainer').style.display = 'block';
+    document.getElementById('customPageContainer').style.display = 'none';
+    renderMainFeed(); 
+  }
   else if (section === 'users') { 
-    mainEl.classList.add('layout-full');
-    renderSection(contentEl, buildUsersSection()); 
-  } 
-  else if (section === 'barangay') { 
-    mainEl.classList.add('layout-full'); 
-    renderSection(contentEl, buildBarangaySection()); 
+    if(mainEl) mainEl.classList.add('layout-full');
+    document.getElementById('incidentsGridContainer').style.display = 'none';
+    document.getElementById('customPageContainer').style.display = 'block';
+    renderSection(document.getElementById('customPageContainer'), buildUsersSection()); 
   } 
   else if (section === 'settings') { 
-    mainEl.classList.add('layout-full'); 
-    renderSection(contentEl, buildSettingsSection()); 
+    if(mainEl) mainEl.classList.add('layout-full'); 
+    document.getElementById('incidentsGridContainer').style.display = 'none';
+    document.getElementById('customPageContainer').style.display = 'block';
+    renderSection(document.getElementById('customPageContainer'), buildSettingsSection()); 
   }
 }
 
 let MAIN_FEED_HTML = '';
 window.addEventListener('DOMContentLoaded', () => { setTimeout(() => { MAIN_FEED_HTML = document.querySelector('.content')?.innerHTML || ''; }, 0); });
+
 function renderMainFeed() {
-  const contentEl = document.querySelector('.content');
-  if (!document.getElementById('incidentsGrid')) { contentEl.innerHTML = MAIN_FEED_HTML; }
+  const feedTitle = document.getElementById('mainFeedTitle');
+  const filterChips = document.getElementById('mainFilterChips');
+  
+  if (currentFilter === 'resolved') {
+    if(feedTitle) feedTitle.textContent = "Resolved Reports";
+    if(filterChips) filterChips.style.display = "none";
+  } else if (currentFilter === 'false') {
+    if(feedTitle) feedTitle.textContent = "False / Invalid Reports";
+    if(filterChips) filterChips.style.display = "none";
+  } else {
+    if(feedTitle) feedTitle.textContent = "Community Incident Reports";
+    if(filterChips) filterChips.style.display = "flex";
+  }
+
   updateStats(); renderIncidents();
 }
 function renderSection(container, html) { container.innerHTML = html; }
 
-function buildUsersSection() { loadAdminUsers(); return `<div><div class="feed-header" style="margin-bottom:18px"><div class="feed-title">Admin Users</div><button class="sort-btn active" style="margin-left:auto" onclick="showToast('Add admin via DB manually for now.','info')">+ Add Admin</button></div><div id="usersTable"><div style="padding:40px;text-align:center;color:var(--gray-400)"><div style="font-size:28px;margin-bottom:8px">👥</div>Loading users…</div></div></div>`; }
+function buildUsersSection() { loadAdminUsers(); return `<div><div class="feed-header" style="margin-bottom:18px"><div class="feed-title">System Users (Development)</div></div><div id="usersTable"><div style="padding:40px;text-align:center;color:var(--gray-400)"><div style="font-size:28px;margin-bottom:8px">👥</div>Loading users…</div></div></div>`; }
 let _adminUsers = [];
 async function loadAdminUsers() {
   try {
     const { data, error } = await adminClient.from('admin_users').select('id, full_name, email, role, is_active, created_at').order('created_at', { ascending: false });
     if (error) throw error;
     _adminUsers = data || []; renderUsersTable(_adminUsers);
-  } catch (err) { const el = document.getElementById('usersTable'); if (el) el.innerHTML = `<div style="padding:20px;color:var(--gray-500);text-align:center">Unable to load users.</div>`; }
+  } catch (err) { const el = document.getElementById('usersTable'); if (el) el.innerHTML = `<div style="padding:20px;color:var(--gray-500);text-align:center">Add admin via Database manually for now.</div>`; }
 }
 function renderUsersTable(users) {
   const el = document.getElementById('usersTable'); if (!el) return;
   if (!users.length) { el.innerHTML = `<div style="padding:40px;text-align:center;color:var(--gray-400)">No admin users found.</div>`; return; }
-  el.innerHTML = `<table style="width:100%;border-collapse:collapse;background:var(--white);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-sm)"><thead><tr style="background:var(--gray-100);border-bottom:1.5px solid var(--gray-200)"><th style="${thStyle()}">Name</th><th style="${thStyle()}">Email</th><th style="${thStyle()}">Role</th><th style="${thStyle()}">Status</th><th style="${thStyle()}">Joined</th><th style="${thStyle()}">Actions</th></tr></thead><tbody>${users.map(u => `<tr style="border-bottom:1px solid var(--gray-100)"><td style="${tdStyle()}"><strong>${u.full_name || '—'}</strong></td><td style="${tdStyle()};color:var(--gray-500)">${u.email}</td><td style="${tdStyle()}"><span style="background:var(--red-pale);color:var(--red);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">${u.role || 'dispatcher'}</span></td><td style="${tdStyle()}"><span style="background:${u.is_active ? '#dcfce7' : '#f3f4f6'};color:${u.is_active ? '#15803d' : 'var(--gray-500)'};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">${u.is_active ? '● Active' : '○ Inactive'}</span></td><td style="${tdStyle()};color:var(--gray-500);font-size:12px">${u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td><td style="${tdStyle()}"><button class="view-btn" onclick="toggleAdminStatus('${u.id}', ${u.is_active})">${u.is_active ? 'Deactivate' : 'Activate'}</button></td></tr>`).join('')}</tbody></table>`;
+  el.innerHTML = `<table style="width:100%;border-collapse:collapse;background:var(--white);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-sm)"><thead><tr style="background:var(--gray-100);border-bottom:1.5px solid var(--gray-200)"><th style="${thStyle()}">Name</th><th style="${thStyle()}">Email</th><th style="${thStyle()}">Role</th><th style="${thStyle()}">Status</th><th style="${thStyle()}">Joined</th></tr></thead><tbody>${users.map(u => `<tr style="border-bottom:1px solid var(--gray-100)"><td style="${tdStyle()}"><strong>${u.full_name || '—'}</strong></td><td style="${tdStyle()};color:var(--gray-500)">${u.email}</td><td style="${tdStyle()}"><span style="background:var(--red-pale);color:var(--red);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">${u.role || 'dispatcher'}</span></td><td style="${tdStyle()}"><span style="background:${u.is_active ? '#dcfce7' : '#f3f4f6'};color:${u.is_active ? '#15803d' : 'var(--gray-500)'};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">${u.is_active ? '● Active' : '○ Inactive'}</span></td><td style="${tdStyle()};color:var(--gray-500);font-size:12px">${u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td></tr>`).join('')}</tbody></table>`;
 }
 function thStyle() { return 'padding:11px 16px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-500);text-align:left'; }
 function tdStyle() { return 'padding:13px 16px;font-size:13px;color:var(--gray-800)'; }
 
-async function toggleAdminStatus(adminId, currentActive) {
-  try {
-    const { error } = await adminClient.from('admin_users').update({ is_active: !currentActive }).eq('id', adminId);
-    if (error) throw error;
-    showToast(currentActive ? '🔒 Admin deactivated.' : '✅ Admin activated.', 'success');
-    loadAdminUsers();
-  } catch (err) { showToast('Failed to update.', 'error'); }
-}
-
-function buildBarangaySection() { loadBarangays(); return `<div><div class="feed-header" style="margin-bottom:18px"><div class="feed-title">Barangay Zones</div></div><div id="barangayGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px"><div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--gray-400)"><div style="font-size:28px;margin-bottom:8px">🏘️</div>Loading barangays…</div></div></div>`; }
-async function loadBarangays() {
-  try {
-    const { data, error } = await adminClient.from('barangays').select('*').order('name');
-    if (error) throw error; renderBarangays(data || []);
-  } catch (_) { renderBarangays(DEMO_BARANGAYS); }
-}
-function renderBarangays(list) {
-  const el = document.getElementById('barangayGrid'); if (!el) return;
-  if (!list.length) { el.innerHTML = `<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--gray-400)">No barangays configured.</div>`; return; }
-  const total = incidents.length;
-  el.innerHTML = list.map(b => {
-    const count = incidents.filter(i => i.barangay === b.name).length;
-    const pct = total ? Math.round((count / total) * 100) : 0;
-    return `<div style="background:var(--white);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow-sm);border:1.5px solid var(--gray-200)"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px">🏘️ ${b.name}</div><span style="font-size:11px;color:var(--gray-500);background:var(--gray-100);padding:3px 9px;border-radius:12px">Zone ${b.zone || 'N/A'}</span></div><div style="font-size:12px;color:var(--gray-500);margin-bottom:8px">👤 ${b.contact_person || '—'} · ${b.contact_number || '—'}</div><div style="background:var(--gray-100);border-radius:6px;height:6px;margin-bottom:6px"><div style="width:${pct}%;background:var(--red);height:100%;border-radius:6px;transition:width .4s"></div></div><div style="font-size:11px;color:var(--gray-500)">${count} incidents reported</div></div>`;
-  }).join('');
-}
-
 function buildSettingsSection() {
   const adminEmail = currentAdmin?.email || '—';
-  return `<div style="max-width:580px"><div class="feed-header" style="margin-bottom:20px"><div class="feed-title">Settings</div></div><div style="background:var(--white);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow-sm);margin-bottom:16px;border:1.5px solid var(--gray-200)"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:16px;display:flex;align-items:center;gap:8px">👤 Account Settings</div><div style="margin-bottom:14px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);margin-bottom:5px">Logged in as</div><div style="font-size:13.5px;font-weight:600;color:var(--gray-800)">${adminEmail}</div></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="sort-btn" onclick="showChangePasswordFlow()">🔑 Change Password</button><button class="sort-btn active" onclick="handleSignOut()" style="background:#ef4444;border-color:#ef4444">🚪 Sign Out</button></div></div><div id="changePwSection" style="display:none;background:var(--white);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow-sm);margin-bottom:16px;border:1.5px solid var(--gray-200)"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:14px">🔑 Change Password</div><div style="margin-bottom:12px"><label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);display:block;margin-bottom:5px">New Password</label><input id="settingNewPw" type="password" placeholder="••••••••" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:9px;font-size:13.5px;font-family:'DM Sans',sans-serif;outline:none;background:var(--gray-100)"></div><div style="margin-bottom:14px"><label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);display:block;margin-bottom:5px">Confirm Password</label><input id="settingConfirmPw" type="password" placeholder="••••••••" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:9px;font-size:13.5px;font-family:'DM Sans',sans-serif;outline:none;background:var(--gray-100)"></div><div style="display:flex;gap:10px"><button class="sort-btn active" onclick="saveNewPassword()">Save</button><button class="sort-btn" onclick="document.getElementById('changePwSection').style.display='none'">Cancel</button></div></div><div style="background:var(--white);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow-sm);margin-bottom:16px;border:1.5px solid var(--gray-200)"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:16px">🔔 Notifications</div>${settingToggle('notifHighPriority', 'High Priority Alerts', 'Get notified for all high-priority incidents.')}${settingToggle('notifNewReport', 'New Report Alerts', 'Get notified whenever a new report is submitted.')}</div></div>`;
+  return `<div style="max-width:580px"><div class="feed-header" style="margin-bottom:20px"><div class="feed-title">Account Settings</div></div><div style="background:var(--white);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow-sm);margin-bottom:16px;border:1.5px solid var(--gray-200)"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:16px;display:flex;align-items:center;gap:8px">👤 Account Info</div><div style="margin-bottom:14px"><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-400);margin-bottom:5px">Logged in as</div><div style="font-size:13.5px;font-weight:600;color:var(--gray-800)">${adminEmail}</div></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="sort-btn active" onclick="handleSignOut()" style="background:#ef4444;border-color:#ef4444">🚪 Sign Out</button></div></div></div>`;
 }
-function settingToggle(id, label, desc) { return `<div style="display:flex;align-items:flex-start;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100)"><div><div style="font-size:13.5px;font-weight:600;color:var(--gray-800);margin-bottom:2px">${label}</div><div style="font-size:12px;color:var(--gray-400)">${desc}</div></div><label style="position:relative;display:inline-block;width:38px;height:22px;margin-left:16px;flex-shrink:0"><input type="checkbox" id="${id}" checked style="opacity:0;width:0;height:0"><span onclick="this.previousElementSibling.checked=!this.previousElementSibling.checked" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#ccc;border-radius:22px;transition:.3s;background:${id === 'notifHighPriority' ? 'var(--red)' : 'var(--gray-300)'}"><span style="position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.3s;transform:${id === 'notifHighPriority' ? 'translateX(16px)' : 'none'}"></span></span></label></div>`; }
-function showChangePasswordFlow() { const el = document.getElementById('changePwSection'); if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none'; }
-async function saveNewPassword() {
-  const pw = document.getElementById('settingNewPw')?.value, cpw = document.getElementById('settingConfirmPw')?.value;
-  if (!pw || pw.length < 8) { showToast('Password must be at least 8 chars.', 'error'); return; }
-  if (pw !== cpw) { showToast('Passwords do not match.', 'error'); return; }
-  try { const { error } = await adminClient.auth.updateUser({ password: pw }); if (error) throw error; showToast('✅ Password updated!', 'success'); document.getElementById('changePwSection').style.display = 'none'; } catch (err) { showToast('Failed: ' + err.message, 'error'); }
-}
+
 async function handleSignOut() {
   showModal('🚪', 'Sign Out?', 'Return to the login page.', 'Sign Out', '#ef4444', async () => {
     try { await adminClient.auth.signOut(); } catch (_) {}
@@ -520,50 +573,57 @@ function openPanel(id) {
   document.getElementById('panelReporter').textContent = inc.reporter;
   document.getElementById('panelContact').textContent  = inc.contact;
   document.getElementById('panelAddress').textContent  = inc.location;
-  document.getElementById('panelBarangay').textContent = inc.barangay;
+  
   renderPanelMedia(inc);
   renderPanelComments(inc);
+  
   const commentInput = document.getElementById('adminCommentInput');
-  if (commentInput) commentInput.value = '';
+  const commentBtn = commentInput?.nextElementSibling;
 
   // ── PHILIPPINE LGU WORKFLOW: STATE MACHINE BUTTONS ──
   const actionWrapper = document.querySelector('.panel-actions');
   if (actionWrapper) {
     const s = inc.status;
-    
-    // Check states
     const isPending = (s === 'pending');
-    const isAck = (s === 'inreview'); // inreview = Acknowledged
+    const isAck = (s === 'inreview'); 
     const isWorking = (s === 'inprogress' || s === 'forwarded');
     const isClosed = (s === 'resolved' || s === 'false');
 
+    if (commentInput && commentBtn) {
+      if (isClosed) {
+        commentInput.disabled = true;
+        commentInput.placeholder = "Comments are disabled for closed reports.";
+        commentInput.style.background = "var(--gray-200)";
+        commentBtn.style.display = "none";
+      } else {
+        commentInput.disabled = false;
+        commentInput.placeholder = "Reply to the resident or post an update...";
+        commentInput.style.background = "transparent";
+        commentBtn.style.display = "block";
+      }
+      commentInput.value = '';
+    }
+
     if (isClosed) {
-      // IF CLOSED: Hide all workflow buttons, show a closed message.
       actionWrapper.innerHTML = `
         <div class="action-row" style="margin-top:8px;">
           <button onclick="closePanel()" style="flex:1; padding:12px; border-radius:9px; background:var(--gray-200); color:var(--gray-600); font-weight:600; font-size:13.5px; font-family:'DM Sans', sans-serif; border:none; cursor:pointer;">✖ Close Panel</button>
+          <button onclick="deleteReport()" style="flex:1; padding:12px; border-radius:9px; background:var(--red-pale); color:var(--red); font-weight:600; font-size:13.5px; font-family:'DM Sans', sans-serif; border:1.5px solid var(--red); cursor:pointer;">🗑 Delete Report</button>
         </div>
         <div class="btn-dispatch-note" style="margin-top:8px;">This report is closed and locked for auditing.</div>
       `;
     } else {
-      // DYNAMIC WORKFLOW BUTTONS
-      // Only Acknowledge is active when Pending
-      const btnAckHtml = `<button class="btn-review ${isPending ? '' : 'disabled'}" onclick="reviewIncident()" ${isPending ? '' : 'disabled'}>👀 Acknowledge Report</button>`;
-      
-      // In-Progress and Forward are active only if Acknowledged
-      const btnProgHtml = `<button class="btn-inprogress ${isAck ? '' : 'disabled'}" onclick="markInProgress()" ${isAck ? '' : 'disabled'}>🚧 Mark as In-Progress</button>`;
-      const btnFwdHtml = `<button class="btn-forward ${isAck ? '' : 'disabled'}" onclick="forwardAgency()" ${isAck ? '' : 'disabled'}>🏢 Forward to Agency</button>`;
-      
-      // Resolve is active only if work has started (In Progress / Forwarded)
-      const btnResHtml = `<button class="btn-resolve ${isWorking ? '' : 'disabled'}" onclick="resolveIncident()" ${isWorking ? '' : 'disabled'}>✅ Mark as Resolved</button>`;
-      
-      // False flag is active as long as it's not closed
+      const btnAckHtml = `<button class="btn-review ${isPending ? '' : 'disabled'}" onclick="reviewIncident()">👀 Acknowledge Report</button>`;
+      const btnProgHtml = `<button class="btn-inprogress ${isAck ? '' : 'disabled'}" onclick="markInProgress()">🚧 Mark as In-Progress</button>`;
+      const btnFwdHtml = `<button class="btn-forward ${isAck ? '' : 'disabled'}" onclick="forwardAgency()">🏢 Forward to Agency</button>`;
+      const btnResHtml = `<button class="btn-resolve ${isWorking ? '' : 'disabled'}" onclick="resolveIncident()">✅ Mark as Resolved</button>`;
       const btnFalseHtml = `<button class="btn-flag" onclick="flagIncident()">🚩 Flag as False</button>`;
+      const btnDeleteHtml = `<button class="btn-delete" onclick="deleteReport()">🗑 Delete Report</button>`;
 
       actionWrapper.innerHTML = `
         <div class="action-row">${btnAckHtml} ${btnResHtml}</div>
         <div class="action-row" style="margin-top: 10px;">${btnProgHtml} ${btnFwdHtml}</div>
-        <div class="action-row" style="margin-top: 10px;">${btnFalseHtml}</div>
+        <div class="action-row" style="margin-top: 10px;">${btnFalseHtml} ${btnDeleteHtml}</div>
         <div class="btn-dispatch-note" style="margin-top:12px;">Step-by-step enforcement active. You cannot skip standard operating procedures.</div>
       `;
     }
@@ -764,6 +824,31 @@ function flagIncident() {
         updateStats(); renderIncidents(); openPanel(inc.id);
         showToast('🚩 Flagged: ' + inc.id, 'info');
       } catch (err) { showToast('Failed to update.', 'error'); }
+    }
+  );
+}
+
+function deleteReport() {
+  if (!selectedId) return;
+  const inc = incidents.find(i => i.id === selectedId);
+  if (!inc) return;
+
+  showModal('🗑️', 'Delete Report?',
+    `Delete "${inc.title}" permanently? This action cannot be undone.`,
+    'Delete', '#7B1113',
+    async () => {
+      try {
+        const { error } = await adminClient.from('reports').delete().eq('id', inc.id);
+        if (error) throw error;
+        
+        incidents = incidents.filter(i => i.id !== inc.id);
+        updateStats(); 
+        renderIncidents(); 
+        closePanel();
+        showToast('🗑️ Report deleted successfully.', 'success');
+      } catch (err) { 
+        showToast('Failed to delete report: ' + err.message, 'error'); 
+      }
     }
   );
 }
