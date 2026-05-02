@@ -204,6 +204,18 @@ body {
   overflow: hidden;
 }
 
+/* Modifier for Full Page Layout */
+.main.layout-full {
+  grid-template-columns: 1fr !important;
+  grid-template-areas:
+    "hdr"
+    "cnt" !important;
+}
+
+.main.layout-full .detail-panel {
+  display: none !important;
+}
+
 /* ────────────────────────────────
    HEADER
 ──────────────────────────────── */
@@ -302,6 +314,10 @@ body {
 }
 .sort-btn:hover:not(.active) { border-color: var(--red); color: var(--red); }
 
+/* ────────────────────────────────
+   NOTIFICATIONS WIDGET 
+──────────────────────────────── */
+.notif-container { position: relative; }
 .notif-btn {
   width: 38px; height: 38px;
   border-radius: 8px;
@@ -322,9 +338,42 @@ body {
   background: var(--red);
   border: 1.5px solid var(--white);
 }
+.notif-dropdown {
+  position: absolute; 
+  top: 48px; right: 0; 
+  width: 320px; 
+  background: var(--white);
+  border-radius: var(--radius); 
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--gray-200);
+  opacity: 0; pointer-events: none; 
+  transform: translateY(10px);
+  transition: all 0.2s ease; 
+  z-index: 1000;
+  display: flex; flex-direction: column; 
+  max-height: 400px;
+}
+.notif-dropdown.show { opacity: 1; pointer-events: all; transform: translateY(0); }
+.notif-hdr {
+  padding: 14px 16px; font-weight: 700; 
+  border-bottom: 1px solid var(--gray-200);
+  font-family: 'Syne', sans-serif; background: #fdfdfd;
+}
+.notif-list { flex: 1; overflow-y: auto; }
+.notif-item {
+  padding: 12px 16px; border-bottom: 1px solid var(--gray-100);
+  font-size: 13px; cursor: pointer; transition: background 0.15s;
+  color: var(--gray-800); line-height: 1.4;
+}
+.notif-item:hover { background: var(--gray-100); }
+.notif-item span.time {
+  display: block; color: var(--gray-400); font-size: 10px;
+  margin-top: 4px; font-weight: 600;
+}
+.notif-empty { padding: 24px; text-align: center; color: var(--gray-400); font-size: 13px; font-style: italic; }
 
 /* ────────────────────────────────
-   MAIN CONTENT
+   CONTENT AREA
 ──────────────────────────────── */
 .content {
   grid-area: cnt;
@@ -400,7 +449,6 @@ body {
 /* ────────────────────────────────
    FEED HEADER
 ──────────────────────────────── */
-
 .feed-header {
   display: flex; align-items: center; gap: 10px;
   margin-bottom: 12px;
@@ -415,7 +463,6 @@ body {
   flex: 1;
   min-width: 0;
 }
-
 .live-badge {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 4px 10px;
@@ -463,7 +510,7 @@ body {
   transition: box-shadow .2s, border-color .2s;
   animation: fadeUp .3s ease both;
   display: grid;
-  grid-template-columns: 160px 1fr; /* 👈 FIX: Much wider image to match screenshot */
+  grid-template-columns: 160px 1fr; 
   align-items: stretch;
   min-height: 120px;
 }
@@ -593,19 +640,15 @@ body {
 .view-btn:hover { opacity: 0.7; }
 
 /* ────────────────────────────────
-   DETAIL PANEL — Inline email pane
+   DETAIL PANEL (Right Side Pane)
 ──────────────────────────────── */
-
-/* Hide the dark overlay entirely — no modal slide-in needed */
-.detail-overlay {
-  display: none !important;
-}
+.detail-overlay { display: none !important; }
 
 .detail-panel {
   grid-area: dtl;
-  position: relative;        /* override fixed */
+  position: relative; 
   top: auto; right: auto; bottom: auto; left: auto;
-  width: auto;               /* fill grid column */
+  width: auto;
   height: 100%;
   transform: none !important;
   background: var(--white);
@@ -617,18 +660,13 @@ body {
   z-index: 1;
 }
 
-/* Empty-state placeholder when no report is selected */
 .detail-panel:not(.open) > .panel-header,
-.detail-panel:not(.open) > .panel-body {
-  visibility: hidden;
-  opacity: 0;
-}
+.detail-panel:not(.open) > .panel-body { visibility: hidden; opacity: 0; }
 
 .detail-panel:not(.open)::after {
-  content: 'Click any of the report to see more details...';
+  content: 'Select a report from the list to view details';
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 50%; left: 50%;
   transform: translate(-50%, -50%);
   color: var(--gray-400);
   font-size: 14px;
@@ -638,11 +676,7 @@ body {
   pointer-events: none;
   text-align: center;
 }
-
-/* Background tint for empty state */
-.detail-panel:not(.open) {
-  background: var(--gray-100);
-}
+.detail-panel:not(.open) { background: var(--gray-100); }
 
 .panel-header {
   padding: 18px 24px 16px;
@@ -683,7 +717,7 @@ body {
 .panel-body { flex: 1; overflow-y: auto; }
 
 .panel-media {
-  height: 280px; /* 👈 FIX: Taller map area for better visibility */
+  height: 280px; 
   background: var(--gray-200);
   position: relative;
   overflow: hidden;
@@ -705,6 +739,7 @@ body {
   box-shadow: var(--shadow-sm);
   cursor: pointer;
   display: flex; align-items: center; gap: 5px;
+  z-index: 1000;
 }
 
 .panel-section {
@@ -745,7 +780,7 @@ body {
   color: var(--gray-700);
 }
 
-/* Panel action buttons (STATE MACHINE) */
+/* LGU WORKFLOW BUTTONS */
 .panel-actions {
   padding: 20px 24px;
   display: flex; flex-direction: column; gap: 10px;
@@ -755,6 +790,7 @@ body {
 .btn-review,
 .btn-resolve,
 .btn-flag,
+.btn-delete,
 .btn-inprogress,
 .btn-forward {
   flex: 1 1 calc(50% - 12px);
@@ -781,10 +817,9 @@ body {
 .btn-resolve { border: 1.5px solid var(--green); color: var(--green); }
 .btn-resolve:hover:not(.disabled) { background: var(--green-light); }
 
-.btn-flag { border: 1.5px solid var(--red); color: var(--red); flex: 1; }
-.btn-flag:hover { background: var(--red-pale); }
+.btn-flag, .btn-delete { border: 1.5px solid var(--red); color: var(--red); flex: 1; }
+.btn-flag:hover, .btn-delete:hover { background: var(--red-pale); }
 
-/* DISABLED STATE (Greyed Out) */
 .disabled {
   border: 1.5px solid var(--gray-300) !important;
   color: var(--gray-400) !important;
@@ -794,7 +829,7 @@ body {
 }
 
 /* ────────────────────────────────
-   MODAL
+   MODALS
 ──────────────────────────────── */
 .modal-overlay {
   position: fixed; inset: 0;
@@ -899,6 +934,7 @@ body {
   body { overflow-y: auto; }
   .sidebar { position: static; width: 100%; min-height: auto; }
   #adminAppShell { flex-direction: column; }
+  
   .main {
     margin-left: 0;
     width: 100%;
@@ -908,7 +944,7 @@ body {
     grid-template-rows: auto 1fr;
     grid-template-areas: "hdr" "cnt";
   }
-  /* On mobile fall back to the original overlay panel */
+  
   .detail-overlay {
     display: block !important;
     position: fixed; inset: 0;
@@ -918,7 +954,9 @@ body {
     pointer-events: none;
     transition: opacity .25s;
   }
+  
   .detail-overlay.open { opacity: 1; pointer-events: all; }
+  
   .detail-panel {
     position: fixed !important;
     top: 0; right: 0; bottom: 0; left: auto;
@@ -929,22 +967,10 @@ body {
     z-index: 201;
     border-left: none;
   }
+  
   .detail-panel.open { transform: translateX(0) !important; }
   .detail-panel:not(.open) { background: var(--white); }
+  
   .incidents-grid { grid-template-columns: 1fr; }
   .incident-card { grid-template-columns: 120px 1fr; }
-}
-
-/* ────────────────────────────────
-   FULL PAGE LAYOUT MODIFIER
-──────────────────────────────── */
-.main.layout-full {
-  grid-template-columns: 1fr !important;
-  grid-template-areas:
-    "hdr"
-    "cnt" !important;
-}
-
-.main.layout-full .detail-panel {
-  display: none !important;
 }
