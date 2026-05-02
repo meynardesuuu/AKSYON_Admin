@@ -168,13 +168,16 @@
         <div class="nav-item active" onclick="setNav(this, 'complaints')">
           <span class="nav-icon">📋</span> Complaints <span class="nav-badge" id="pendingBadge">0</span>
         </div>
+        <div class="nav-item" onclick="setNav(this, 'resolved')">
+          <span class="nav-icon">✅</span> Resolved
+        </div>
+        <div class="nav-item" onclick="setNav(this, 'false')">
+          <span class="nav-icon">🚩</span> False Reports
+        </div>
 
         <div class="nav-section-label">System</div>
         <div class="nav-item" onclick="setNav(this, 'users')">
           <span class="nav-icon">👥</span> Users
-        </div>
-        <div class="nav-item" onclick="setNav(this, 'barangay')">
-          <span class="nav-icon">🏘️</span> Barangay Zones
         </div>
         <div class="nav-item" onclick="setNav(this, 'settings')">
           <span class="nav-icon">⚙️</span> Settings
@@ -213,9 +216,15 @@
           <button class="sort-btn" onclick="sortBy('priority', this)">Priority Level</button>
         </div>
 
-        <button class="notif-btn" onclick="showToast('No new notifications.', 'info')">
-          🔔<span class="notif-dot"></span>
-        </button>
+        <div class="notif-container">
+          <button class="notif-btn" onclick="toggleNotifDropdown(event)">
+            🔔<span class="notif-dot" id="notifDot" style="display:none;"></span>
+          </button>
+          <div class="notif-dropdown" id="notifDropdown">
+            <div class="notif-hdr">Notifications</div>
+            <div class="notif-list" id="notifList"></div>
+          </div>
+        </div>
       </header>
 
       <div class="content">
@@ -254,22 +263,24 @@
           </div>
         </div>
 
-        <div>
-          <div class="feed-title">Community Incident Reports</div>
+        <div id="incidentsGridContainer">
           <div class="feed-header">
+            <div class="feed-title" id="mainFeedTitle">Community Incident Reports</div>
             <div class="live-badge">
               <span class="live-pulse" style="width:6px;height:6px;background:#16a34a"></span>
               <span id="liveBadgeCount">0 Live</span>
             </div>
-            <div class="filter-chips">
-              <div class="chip active" onclick="filterByType('all', this)">All</div>
-              <div class="chip" onclick="filterByType('pending', this)">Pending</div>
-              <div class="chip" onclick="filterByType('inreview', this)">In Review</div>
-              <div class="chip" onclick="filterByType('resolved', this)">Resolved</div>
+            <div class="filter-chips" id="mainFilterChips">
+              <div class="chip active" data-filter="all" onclick="filterByType('all', this)">All</div>
+              <div class="chip" data-filter="pending" onclick="filterByType('pending', this)">Pending</div>
+              <div class="chip" data-filter="inreview" onclick="filterByType('inreview', this)">In Review</div>
             </div>
           </div>
           <div class="incidents-grid" id="incidentsGrid"></div>
         </div>
+        
+        <div id="customPageContainer" style="display: none;"></div>
+
       </div>
 
       <!-- 👈 FIX: DITO KO NA ILINIPAT ANG DETAIL PANEL SA LOOB NG .main -->
@@ -343,16 +354,7 @@
           </div>
 
           <div class="panel-actions">
-            <div class="action-row">
-              <button class="btn-review" onclick="reviewIncident()">🔎 Mark as Reviewed</button>
-              <button class="btn-resolve" onclick="resolveIncident()">✅ Mark as Resolved</button>
-            </div>
-            <div class="action-row">
-              <button class="btn-flag" onclick="flagIncident()">🚩 Flag as False</button>
-              <button class="btn-delete" onclick="deleteReport()">🗑 Delete Report</button>
-            </div>
-            <button class="btn-dispatch" onclick="dispatchUnits()">🚁 Dispatch Response Units</button>
-            <div class="btn-dispatch-note">Review the report first, then dispatch and leave updates through the comment thread.</div>
+             <!-- Populated dynamically via JS state machine -->
           </div>
         </div>
       </div>
